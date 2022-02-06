@@ -1,8 +1,10 @@
 # WP_Device_Portal
-Small toolkit for utilising features from Windows Device Portal on Windows 10 Mobile
+Small tool for easily using Windows Device Portal on Windows 10 Mobile (and Desktop)
+
+[screenshot.jpg]
 
 ## Features:
-Device Info:
+Summary Info:
  - Network Adapter Info
  - WiFi IP Info
 
@@ -12,10 +14,22 @@ Applications:
 - Launch
 - Information
 
-Services:
-- Running Services
+Processes:
+- Running Processes
 
+Performance Info (Not real-time yet):
+
+- CPU Load
+- GPU
+- Memory Pages
+- Network
+
+Devices (Basic):
+
+- Hardware Driver Info
 
 ### Notes
-- This is heavily based of the WindowsDevicePortalWrapper library and UWP sample.
-- 
+- This is makes use of the [WindowsDevicePortalWrapper library and UWP sample](https://github.com/microsoft/WindowsDevicePortalWrapper).
+- WDPWrapper I have slightly modified to report Platform as Windows for Unknown platforms
+- Thanks to [BAstifan](https://github.com/basharast) for help with Processes Table
+- Minimum build 10240 required
