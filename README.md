@@ -1,7 +1,7 @@
 # WP_Device_Portal
 Small tool for easily using Windows Device Portal on Windows 10 Mobile (and Desktop)
 
-[screenshot.jpg]
+![](screenshot.jpg)
 
 ## Features:
 Summary Info:
