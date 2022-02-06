@@ -1,4 +1,4 @@
-# WP_Device_Portal
+# Windows Phone Device Portal Client
 Small tool for easily using Windows Device Portal on Windows 10 Mobile (and Desktop)
 
 ## Requirements:
