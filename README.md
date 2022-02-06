@@ -1,6 +1,10 @@
 # WP_Device_Portal
 Small tool for easily using Windows Device Portal on Windows 10 Mobile (and Desktop)
 
+## Requirements:
+- Windows Device Portal enabled with Authentication Off
+- Windows 10 Mobile (or Desktop) build 10240+
+
 ![](screenshot.jpg)
 
 ## Features:
@@ -32,4 +36,3 @@ Devices (Basic):
 - This is makes use of the [WindowsDevicePortalWrapper library and UWP sample](https://github.com/microsoft/WindowsDevicePortalWrapper).
 - WDPWrapper I have slightly modified to report Platform as Windows for Unknown platforms
 - Thanks to [BAstifan](https://github.com/basharast) for help with Processes Table
-- Minimum build 10240 required
