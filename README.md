@@ -2,6 +2,8 @@
 Small tool for easily using Windows Device Portal on Windows 10 Mobile (and Desktop)
 
 *Sadly it's currently broken for some insider builds, the "first" release will be recommended if current builds crash*
+
+
 ## Requirements:
 - Windows Device Portal enabled with Authentication Off
 - Windows 10 Mobile (or Desktop) build 10240+
@@ -38,3 +40,5 @@ Devices (Basic):
 - WDPWrapper I have slightly modified to report Platform as Windows for Unknown platforms
 - Thanks to [BAstifan](https://github.com/basharast) for help with Processes Table
 - The graphs were provided by [UWPQuickCharts](https://github.com/ailon/UWPQuickCharts)
+- Updates are using Octokit from Github
+- ArchiverPlus Library I can't remember which project it came from but it is/was on Github

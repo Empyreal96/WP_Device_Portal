@@ -17,13 +17,19 @@ using Windows.UI.Xaml.Media;
 using Windows.Security.ExchangeActiveSyncProvisioning;
 using System.Linq;
 using System.Threading;
+using Windows.Networking.BackgroundTransfer;
+using System.Net.NetworkInformation;
+using Octokit;
+using System.IO;
+
+using LightBuzz.Archiver;
 
 namespace WPDevPortal
 {
     /// <summary>
     /// The main page of the application.
     /// </summary>
-    public sealed partial class MainPage : Page
+    public sealed partial class MainPage : Windows.UI.Xaml.Controls.Page
     {
         /// <summary>
         /// The device portal to which we are connecting.
@@ -35,8 +41,10 @@ namespace WPDevPortal
         private string WDPPass { get; set; }
         public string pkgResults { get; set; }
         public Task<AppPackages> packages { get; set; }
+        public Task<List<Device>> hardwareList { get; set; }
         public StringBuilder sb { get; set; }
         public StringBuilder sb1 { get; set; }
+        public StringBuilder sb2 { get; set; }
         private string pkgFullName { get; set; }
         private string pkgAppID { get; set; }
         private string pkgOrigin { get; set; }
@@ -45,6 +53,7 @@ namespace WPDevPortal
         private bool IsMatching { get; set; }
         private DispatcherTimer _timer = new DispatcherTimer();
         private bool isConnected { get; set; }
+        private SystemPerformanceInformation perfResult { get; set; }
         /// <summary>
         /// The main page constructor.
         /// </summary>
@@ -52,9 +61,14 @@ namespace WPDevPortal
         {
             this.InitializeComponent();
             this.EnableDeviceControls(false);
-            
-
-
+            DLButton.Visibility = Visibility.Collapsed;
+            ProgressBarDownload.Visibility = Visibility.Collapsed;
+            Acknowledgements.Text =
+                $"This software uses Open Source libraries.\n" +
+                $"• WindowsDevicePortalWrapper and Sample by Microsoft.\n" +
+                $"• UWPQuickCharts by 'ailon'\n" +
+                $"• 'ArchiverPlus' Class by Lightbuzz(?)\n\n" +
+                $"Thanks to BAstifan for help with a few parts";
             var str = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily;
             if (str == "Windows.Desktop")
             {
@@ -86,7 +100,7 @@ namespace WPDevPortal
 
 
         }
-       
+
 
         /// <summary>
         /// TextChanged handler for the address text box.
@@ -120,16 +134,16 @@ namespace WPDevPortal
         /// <param name="e">The arguments associated with this event.</param>
         private async void ConnectToDevice_Click(object sender, RoutedEventArgs e)
         {
-            
-           
+
+
             try
             {
-                
+
                 ProgBar.Visibility = Visibility.Visible;
                 ProgBar.IsEnabled = true;
                 ProgBar.IsIndeterminate = true;
-                
-                                   this.EnableConnectionControls(false);
+
+                this.EnableConnectionControls(false);
                 this.EnableDeviceControls(false);
 
                 this.ClearOutput();
@@ -145,30 +159,31 @@ namespace WPDevPortal
                         WDPAddress,
                         WDPUser,
                         WDPPass));
-               
-               
+
+
                 EasClientDeviceInformation eas = new EasClientDeviceInformation();
                 string DeviceManufacturer = eas.SystemManufacturer;
                 string DeviceModel = eas.SystemProductName;
-                
-                
+
+
                 sb = new StringBuilder();
                 sb1 = new StringBuilder();
+                sb2 = new StringBuilder();
                 await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                                () =>
                                {
                                    commandOutput.Text = "";
                                });
-                                   sb.Append(this.commandOutput.Text);
+                sb.Append(this.commandOutput.Text);
                 sb.AppendLine("");
                 this.commandOutput.Text = sb.ToString();
                 portal.ConnectionStatus += async (portal, connectArgs) =>
                 {
-                    
+
                     if (connectArgs.Status == DeviceConnectionStatus.Connected)
                     {
                         var token = processesAppsContainerScroll.RegisterPropertyChangedCallback(ScrollViewer.HorizontalOffsetProperty, OnScrollChangedChange);
-                        
+
 
 
                         sb.Append("Connected to: ");
@@ -176,7 +191,7 @@ namespace WPDevPortal
                         sb.Append("OS version: ");
                         sb.AppendLine(portal.OperatingSystemVersion);
                         sb.Append("Device family: ");
-                        sb.AppendLine(portal.DeviceFamily);
+                        sb.AppendLine(portal.DeviceFamily.Replace(".", " "));
                         sb.Append("Platform: ");
                         sb.AppendLine(String.Format("{0} ({1})",
                             portal.PlatformName,
@@ -191,7 +206,7 @@ namespace WPDevPortal
                         BatteryState batteryResult = batteryStat.Result;
                         sb.Append("Battery Level: ");
                         sb.AppendLine($"{batteryResult.Level.ToString()}%");
-                        
+
 
                         await Task.Run(async () =>
                         {
@@ -204,18 +219,18 @@ namespace WPDevPortal
                                 () =>
                                     {
                                         appsComboBox.Items.Add(pkg.FullName);
-                                        address.BorderBrush = new SolidColorBrush(Windows.UI.Colors.Green);
+                                        
 
                                     });
                             }
 
 
                         });
-
+                        isConnected = true;
                         await Task.Run(() =>
                         {
                             FetchProcessInfo();
-                            //FetchPerfInfo();
+                            FillInitialRealTimeData();
                             FetchHWInfo();
                         });
                         await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
@@ -224,15 +239,16 @@ namespace WPDevPortal
                                    ProgBar.Visibility = Visibility.Collapsed;
                                    ProgBar.IsEnabled = false;
                                    ProgBar.IsIndeterminate = false;
+                                   address.BorderBrush = new SolidColorBrush(Windows.UI.Colors.Green);
                                });
 
 
 
 
-                        isConnected = true;
+                       
+
                         
-                            FillInitialRealTimeData();
-                        
+
 
                     }
                     else if (connectArgs.Status == DeviceConnectionStatus.Failed)
@@ -273,7 +289,7 @@ namespace WPDevPortal
             }
         }
 
-       public void timer_Tick(object sender, EventArgs e)
+        public void timer_Tick(object sender, EventArgs e)
         {
             FetchPerfInfo();
         }
@@ -777,6 +793,10 @@ namespace WPDevPortal
 
 
 
+
+
+
+
         public AppRowInfo processRow { get; set; }
         private async void FetchProcessInfo()
         {
@@ -787,13 +807,13 @@ namespace WPDevPortal
             await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                                 () =>
                                 {
-                                    foreach (var processItem in processes.OrderBy(item => item.Name)    )
+                                    foreach (var processItem in processes.OrderBy(item => item.Name))
                                     {
                                         string PID = processItem.ProcessId.ToString(); //PID Value
                                         string SessionID = processItem.SessionId.ToString(); //PID Value
                                         string Name = processItem.Name; //Name Value
                                         string UserName = processItem.UserName; //UserName Value
-                                        string Usage = processItem.Publisher; //Publisher Value
+                                        string Usage = processItem.PackageFullName; //Package Full Name Value
                                         string Memory = ((long)processItem.WorkingSet).ToFileSize(); //Working Set Memory Value
                                         string PageFile = ((long)processItem.PageFile).ToFileSize(); ; //PageFile Value
                                         string Disk = ((long)processItem.TotalCommit).ToFileSize(); //Disk Value
@@ -920,9 +940,9 @@ namespace WPDevPortal
         }
 
 
-      
-        private SystemPerformanceInformation perfResult { get; set; }
+
        
+
         private string PerformanceResults;
         private string engines { get; set; }
         private async void FetchPerfInfo()
@@ -930,11 +950,11 @@ namespace WPDevPortal
             Task<SystemPerformanceInformation> perf = portal.GetSystemPerfAsync();
             perfResult = perf.Result;
 
-            
 
-           
 
-          
+
+
+
 
             //Paging/Memory
             uint pagedPoolPages = perfResult.PagedPoolPages;
@@ -958,43 +978,10 @@ namespace WPDevPortal
                 $"Total Installed Pages: {totalInstalledPages}\n\n";
 
 
-          
+
         }
 
-        private List<string> HWList = new List<string>();
-        private string HardwareInformation { get; set; }
-        private string hwout { get; set; }
-        private async void FetchHWInfo()
-        {
-            HardwareInformation =
-                "";
 
-            Task<List<Device>> hardwareList = portal.GetDeviceListAsync();
-            Task<List<Device>> hardwareResult = hardwareList;
-            foreach (Device device in hardwareResult.Result)
-            {
-                string devFriendlyname = device.Class;
-                string devID = device.ID;
-                string devManufacture = device.Manufacturer;
-                string devDesc = device.Description;
-                hwout =
-                    $"Class: {devFriendlyname}\n" +
-                    $"Device ID: {devID}\n" +
-                    $"Manufacture: {devManufacture}\n" +
-                    $"Description: {devDesc}\n\n";
-                HWList.Add(hwout);
-            }
-
-            HWList.Sort();
-            HardwareInformation += String.Join("\n\n", HWList);
-
-            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
-                               () =>
-                               {
-                                   DevicesText.Text = HardwareInformation;
-                               });
-            
-        }
 
 
 
@@ -1039,10 +1026,10 @@ namespace WPDevPortal
             long MB = 1024 * 1024;
             long GB = MB * 1024;
             double convertedFileSize;
-            
+
             foreach (var adapter in gpu)
             {
-                
+
                 var maingpu = adapter.EnginesUtilization;
                 foreach (var engine in maingpu)
                 {
@@ -1132,7 +1119,7 @@ namespace WPDevPortal
             if (isConnected == true)
             {
                 SystemPerformanceInformation perf = await portal.GetSystemPerfAsync();
-                
+
                 RealTimeData.RemoveAt(0);
                 var gpu = perf.GpuData.Adapters;
                 var network = perf.NetworkData;
@@ -1144,13 +1131,13 @@ namespace WPDevPortal
                 uint commitLimit = perf.CommitLimit;
                 uint pagesTotal = perf.TotalPages;
                 ulong totalInstalledPages = perf.TotalInstalledKb;
-                
+
                 double gpuresult = 0;
                 long KB = 1024;
                 long MB = 1024 * 1024;
                 long GB = MB * 1024;
                 double convertedFileSize;
-               
+
                 foreach (var adapter in gpu)
                 {
                     var maingpu = adapter.EnginesUtilization;
@@ -1204,7 +1191,7 @@ namespace WPDevPortal
                     Seconds = DateTime.Now.Second,
                     CPULoad = (int)cpuload,
                     GPULoad = (int)gpuresult,
-                     GPUMemSharedTotal = gpuSharedTotal,
+                    GPUMemSharedTotal = gpuSharedTotal,
                     GPUMemShared = gpuSharedUsed,
                     GPUMemSelf = gpuSelfUsed,
                     GPUMemSelfTotal = gpuSelfTotal,
@@ -1247,6 +1234,287 @@ namespace WPDevPortal
             public double TotalPages { get; set; }
         }
 
-        
+
+
+        private Task<List<Device>> hardwareResult { get; set; }
+        private async void FetchHWInfo()
+        {
+
+            hardwareList = portal.GetDeviceListAsync();
+            hardwareResult = hardwareList;
+            foreach (Device device in hardwareResult.Result)
+            {
+                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                 () =>
+                                 {
+                                     DriverComboBox.Items.Add(device.ID);
+                                 });
+            }
+
+        }
+
+
+        private void DriverComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            string selected = (sender as ComboBox).SelectedItem.ToString();
+            FetchHWInfoResults(selected);
+        }
+        string name;
+        string ID;
+        string parentID;
+        string hwclass;
+        string description;
+        string manufacture;
+        int statusCode;
+        int ErrorCode;
+        private async void FetchHWInfoResults(string selected)
+        {
+
+
+            sb2.Clear();
+            DevicesText.Text = string.Empty;
+            foreach (var device in hardwareResult.Result)
+            {
+                if (device.ID == selected)
+                {
+
+                    if (device.FriendlyName == string.Empty)
+                    {
+                        name = "N/A";
+                    }
+                    else
+                    {
+                        name = device.FriendlyName;
+                    }
+                    ID = device.ID;
+                    parentID = device.ParentID;
+                    if (device.Class == string.Empty)
+                    {
+                        hwclass = "N/A";
+                    }
+                    else
+                    {
+                        hwclass = device.Class;
+                    }
+                    if (device.Description == string.Empty)
+                    {
+                        description = "N/A";
+
+                    }
+                    else
+                    {
+                        description = device.Description;
+                    }
+                    if (device.Manufacturer == string.Empty)
+                    {
+                        manufacture = "Unknown";
+                    }
+                    else
+                    {
+                        manufacture = device.Manufacturer;
+                    }
+                    statusCode = device.StatusCode;
+                    ErrorCode = device.ProblemCode;
+                    sb2.Append(DevicesText.Text);
+                    sb2.AppendLine("");
+                    sb2.Append("Name: ");
+                    sb2.AppendLine(name);
+                    sb2.Append("Description: ");
+                    sb2.AppendLine(description);
+                    sb2.Append("Class: ");
+                    sb2.AppendLine(hwclass);
+                    sb2.Append("ID: ");
+                    sb2.AppendLine(ID);
+                    sb2.Append("Parent ID: ");
+                    sb2.AppendLine(parentID);
+                    DevicesText.Text = sb2.ToString();
+                }
+
+
+            }
+        }
+        /// <summary>
+        /// MUST CHANGE THESE BEFORE EACH PUBLIC GITHUB RELEASE
+        /// 
+        /// MUST CHANGE THESE BEFORE EACH PUBLIC GITHUB RELEASE
+        /// 
+        /// MUST CHANGE THESE BEFORE EACH PUBLIC GITHUB RELEASE
+        /// </summary>
+        public static string CurrentBuildVersion = "1.0.13.0";
+        public static string PreviousBuildVersion = "1.0.12.0";
+        public static string NextBuildVersion = "1.0.14.0";
+        public static string UploadedFileName = "WPDevPortal_1.0.14.0_Test.zip";
+        public static string AppxUpdateName = "WPDevPortal_1.0.14.0_x86_x64_arm.appxbundle";
+
+        public StorageFolder folder { get; set; }
+        public StorageFile file { get; set; }
+        public bool isLatestBuild { get; set; }
+        public static string UpdateURL { get; set; }
+        DownloadOperation downloadOperation;
+        CancellationTokenSource cancellationToken;
+
+        BackgroundDownloader backgroundDownloader = new BackgroundDownloader();
+
+        private void UpdateBtn_Click(object sender, RoutedEventArgs e)
+        {
+            bool isNetworkConnected = NetworkInterface.GetIsNetworkAvailable();
+            if (isNetworkConnected == true)
+            {
+                CheckForUpdate();
+
+            }
+            else
+            {
+
+                return;
+            }
+
+        }
+        private async void CheckForUpdate()
+        {
+            await Windows.Storage.ApplicationData.Current.ClearAsync(ApplicationDataLocality.LocalCache);
+            GitHubClient client = new GitHubClient(new ProductHeaderValue("WP_Device_Portal"));
+            IReadOnlyList<Release> releases = await client.Repository.Release.GetAll("Empyreal96", "WP_Device_Portal");
+            var latestRelease = releases[0];
+
+            if (latestRelease.Assets != null && latestRelease.Assets.Count > 0)
+            {
+                if (latestRelease.TagName == CurrentBuildVersion)
+                {
+                    isLatestBuild = true;
+                    UpdateBtn.Visibility = Visibility.Collapsed;
+
+                }
+                //Test Function
+                // if(latestRelease.TagName == PreviousBuildVersion)
+                // {
+                //     UpdateOut.Text = "You are on an unreleased build";
+                // }
+
+                else
+                {
+                    var updateURL = latestRelease.Assets[0].BrowserDownloadUrl;
+                    UpdateURL = $"https://github.com/Empyreal96/WP_Device_Portal/releases/download/{latestRelease.TagName}/{UploadedFileName}";
+
+                    UpdateDetailsBox.Visibility = Visibility.Visible;
+                    
+
+                    UpdateDetailsBox.Text = $"Latest Build: {latestRelease.TagName}\n";
+                    UpdateDetailsBox.Text += $"Current Build: {CurrentBuildVersion}\n";
+                    UpdateDetailsBox.Text += $"Date Update Published: {latestRelease.PublishedAt}\n\n";
+
+                    UpdateDetailsBox.Text += $"Download URL: {UpdateURL}\n";
+                    DLButton.Visibility = Visibility.Visible;
+                    UpdateBtn.Visibility = Visibility.Collapsed;
+                   
+                }
+            }
+        }
+
+        private async void DLButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+
+                ProgressBarDownload.Visibility = Visibility.Visible;
+                DLButton.Visibility = Visibility.Collapsed;
+                FolderPicker folderPicker = new FolderPicker();
+                folderPicker.SuggestedStartLocation = PickerLocationId.Downloads;
+                folderPicker.ViewMode = PickerViewMode.Thumbnail;
+                folderPicker.FileTypeFilter.Add("*");
+                folder = await folderPicker.PickSingleFolderAsync();
+                if (folder == null)
+                {
+                    return;
+                }
+                file = await folder.CreateFileAsync($"{UploadedFileName}", CreationCollisionOption.ReplaceExisting);
+
+                downloadOperation = backgroundDownloader.CreateDownload(new Uri(UpdateURL), file);
+
+                Progress<DownloadOperation> progress = new Progress<DownloadOperation>(progressChanged);
+                cancellationToken = new CancellationTokenSource();
+                await downloadOperation.StartAsync().AsTask(cancellationToken.Token, progress);
+                ProgressBarDownload.Visibility = Visibility.Collapsed;
+                InstallUpdate();
+
+            }
+            catch (Exception ex)
+            {
+
+            }
+        }
+        private async void InstallUpdate()
+        {
+            DLButton.Visibility = Visibility.Collapsed;
+            UpdateDetailsBox.Text = "Extracting Update to App Cache";
+            try
+            {
+                
+                await ArchiverPlus.Decompress(file, Windows.Storage.ApplicationData.Current.LocalCacheFolder);
+
+                var options = new Windows.System.LauncherOptions();
+                options.PreferredApplicationPackageFamilyName = "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe";
+                options.PreferredApplicationDisplayName = "App Installer";
+                UpdateDetailsBox.Text = "Attempting to Install Update Package, Please Wait";
+                await Windows.System.Launcher.LaunchFileAsync(await Windows.Storage.ApplicationData.Current.LocalCacheFolder.GetFileAsync(AppxUpdateName), options);
+
+
+            }
+            catch (Exception ex)
+            {
+                UpdateDetailsBox.Text = $"An error occured while trying to install: \n{ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Progress for Download
+        /// </summary>
+        /// <param name="downloadOperation"></param>
+        private void progressChanged(DownloadOperation downloadOperation)
+        {
+            int progress = (int)(100 * ((double)downloadOperation.Progress.BytesReceived / (double)downloadOperation.Progress.TotalBytesToReceive));
+            //TextBlockProgress.Text = String.Format("{0} of {1} kb. downloaded - {2}% complete.", downloadOperation.Progress.BytesReceived / 1024, downloadOperation.Progress.TotalBytesToReceive / 1024, progress);
+            ProgressBarDownload.Value = progress;
+            switch (downloadOperation.Progress.Status)
+            {
+                case BackgroundTransferStatus.Running:
+                    {
+                        UpdateDetailsBox.Text = $"Downloading from {UpdateURL}";
+                        //ButtonPauseResume.Content = "Pause";
+                        break;
+                    }
+                case BackgroundTransferStatus.PausedByApplication:
+                    {
+                        UpdateDetailsBox.Text = "Download paused.";
+                        //ButtonPauseResume.Content = "Resume";
+                        break;
+                    }
+                case BackgroundTransferStatus.PausedCostedNetwork:
+                    {
+                        UpdateDetailsBox.Text = "Download paused because of metered connection.";
+                        //ButtonPauseResume.Content = "Resume";
+                        break;
+                    }
+                case BackgroundTransferStatus.PausedNoNetwork:
+                    {
+                        UpdateDetailsBox.Text = "No network detected. Please check your internet connection.";
+                        break;
+                    }
+                case BackgroundTransferStatus.Error:
+                    {
+                        UpdateDetailsBox.Text = "An error occured while downloading.";
+                        break;
+                    }
+            }
+            if (progress >= 100)
+            {
+                UpdateDetailsBox.Text = $"Download complete. Update downloaded to {folder.Path}\\{UploadedFileName}";
+                // ButtonCancel.IsEnabled = false;
+                //ButtonPauseResume.IsEnabled = false;
+                //ButtonDownload.IsEnabled = true;
+                downloadOperation = null;
+            }
+        }
     }
 }
+

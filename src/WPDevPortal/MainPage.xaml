@@ -17,27 +17,27 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <RelativePanel Grid.Row="0">
-                <TextBox x:Name="address" Grid.Row="0" Margin="5,5,5,5" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" TextWrapping="NoWrap" Text="" VerticalAlignment="Top" Height="32" TextChanged="Address_TextChanged"/>
-               
-                <Button x:Name="connectToDevice" RelativePanel.RightOf="rebootDevice" RelativePanel.LeftOf="shutdownDevice"  RelativePanel.Below="address" Content="Connect" Grid.Row="0" HorizontalAlignment="Stretch" Margin="5,5,5,5" VerticalAlignment="Top" Width="auto" Click="ConnectToDevice_Click" Height="32" IsEnabled="False"/>
+                    <TextBox x:Name="address" Grid.Row="0" Margin="5,5,5,5" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" TextWrapping="NoWrap" Text="" VerticalAlignment="Top" Height="32" TextChanged="Address_TextChanged"/>
+
+                    <Button x:Name="connectToDevice" RelativePanel.RightOf="rebootDevice" RelativePanel.LeftOf="shutdownDevice"  RelativePanel.Below="address" Content="Connect" Grid.Row="0" HorizontalAlignment="Stretch" Margin="5,5,5,5" VerticalAlignment="Top" Width="auto" Click="ConnectToDevice_Click" Height="32" IsEnabled="False"/>
                     <Button x:Name="rebootDevice"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.Below="address"  Content="Reboot" Grid.Row="0" HorizontalAlignment="Stretch" Margin="5,5,5,5" VerticalAlignment="Top" Width="90" Click="RebootDevice_Click" IsEnabled="False" Height="32"/>
-                <Button x:Name="shutdownDevice" Content="Shutdown" Grid.Row="0" HorizontalAlignment="stretch" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="address" Margin="5,5,5,5" VerticalAlignment="Top" Width="90" Click="ShutdownDevice_Click" IsEnabled="False" Height="32"/>
-                
-                <Button x:Name="loadCert" Content="Install WDP Cert" Grid.Row="0" HorizontalAlignment="Stretch" RelativePanel.Below="connectToDevice" RelativePanel.RightOf="getIPConfig" RelativePanel.LeftOf="getWiFiInfo" Margin="5,5,5,5" VerticalAlignment="Top" Width="auto" Click="LoadCertificate_Click" Height="32"/>
-                <CheckBox x:Name="allowUntrustedCheckbox"  Content="Unsecure Connection (Not Recommended)" Grid.Row="0" RelativePanel.Below="loadCert" HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="5,5,5,5"></CheckBox>
+                    <Button x:Name="shutdownDevice" Content="Shutdown" Grid.Row="0" HorizontalAlignment="stretch" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="address" Margin="5,5,5,5" VerticalAlignment="Top" Width="90" Click="ShutdownDevice_Click" IsEnabled="False" Height="32"/>
+
+                    <Button x:Name="loadCert" Content="Install WDP Cert" Grid.Row="0" HorizontalAlignment="Stretch" RelativePanel.Below="connectToDevice" RelativePanel.RightOf="getIPConfig" RelativePanel.LeftOf="getWiFiInfo" Margin="5,5,5,5" VerticalAlignment="Top" Width="auto" Click="LoadCertificate_Click" Height="32"/>
+                    <CheckBox x:Name="allowUntrustedCheckbox"  Content="Unsecure Connection (Not Recommended)" Grid.Row="0" RelativePanel.Below="loadCert" HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="5,5,5,5"></CheckBox>
 
 
-                <Button x:Name="getIPConfig" Content="IP Config" Grid.Row="0" HorizontalAlignment="Stretch" RelativePanel.Below="connectToDevice" RelativePanel.AlignLeftWithPanel="True"  Margin="5,5,5,5" VerticalAlignment="Top" Width="90" Click="GetIPConfig_Click" IsEnabled="False"/>
+                    <Button x:Name="getIPConfig" Content="IP Config" Grid.Row="0" HorizontalAlignment="Stretch" RelativePanel.Below="connectToDevice" RelativePanel.AlignLeftWithPanel="True"  Margin="5,5,5,5" VerticalAlignment="Top" Width="90" Click="GetIPConfig_Click" IsEnabled="False"/>
                     <Button x:Name="getWiFiInfo" Content="WiFi Info" Grid.Row="0" HorizontalAlignment="Stretch" RelativePanel.Below="connectToDevice" RelativePanel.AlignRightWithPanel="True"  Margin="5,5,5,5" VerticalAlignment="Top" Width="90" Click="GetWifiInfo_Click" IsEnabled="False"/>
 
-                
-                <CheckBox x:Name="clearOutput" Content="Clear output" RelativePanel.Below="allowUntrustedCheckbox" HorizontalAlignment="Stretch" Margin="5,5,5,5" VerticalAlignment="Top" IsChecked="True" Grid.Row="1" Height="32"/>
+
+                    <CheckBox x:Name="clearOutput" Content="Clear output" RelativePanel.Below="allowUntrustedCheckbox" HorizontalAlignment="Stretch" Margin="5,5,5,5" VerticalAlignment="Top" IsChecked="True" Grid.Row="1" Height="32"/>
                     <ProgressBar x:Name="ProgBar" Visibility="Collapsed" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True"  RelativePanel.Below="clearOutput"/>
                 </RelativePanel>
                 <ScrollViewer Margin="10,45,10,10" Grid.Row="1" VerticalScrollMode="Auto">
-                    
+
                     <TextBox x:Name="commandOutput" ScrollViewer.VerticalScrollMode="Enabled" TextWrapping="Wrap" Text="" BorderThickness="0" Background="#FF1E1E1E"/>
-                    
+
                 </ScrollViewer>
 
             </Grid>
@@ -55,7 +55,7 @@
                                Text="Choose an application to install"
                                Margin="5,5,5,5"
                                RelativePanel.AlignLeftWithPanel="True"/>
-                    
+
                 </RelativePanel>
                 <RelativePanel Grid.Row="0">
                     <ComboBox x:Name="appsComboBox"
@@ -136,7 +136,7 @@
                             <Button Background="Transparent" Content="PID" FontWeight="Bold" Width="75" Margin="5,0,5,0" Tag="PID"/>
                         </Border>
                         <Border Grid.Column="2"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Gray" Opacity="0.7" Background="Transparent">
-                            <Button Background="Transparent" Content="Publisher"  FontWeight="Bold" Width="100" Margin="5,0,5,0" Tag="Usage"/>
+                            <Button Background="Transparent" Content="Full Name"  FontWeight="Bold" Width="100" Margin="5,0,5,0" Tag="Usage"/>
                         </Border>
                         <Border Grid.Column="3"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Orange" Opacity="0.7" Background="Transparent">
                             <Button Background="Transparent" Content="Working Set" FontWeight="Bold" Width="100" Margin="5,0,5,0" Tag="Memory"/>
@@ -170,6 +170,7 @@
                                         <Style TargetType="TextBlock">
                                             <Setter Property="FontSize" Value="12"/>
                                             <Setter Property="HorizontalAlignment" Value="Left"/>
+                                            <Setter Property="Margin" Value="2,0,2,0"/>
                                             <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="TextWrapping" Value="Wrap"/>
                                         </Style>
@@ -184,9 +185,9 @@
                                         <ColumnDefinition Width="200"/>
                                         <ColumnDefinition Width="100"/>
                                     </Grid.ColumnDefinitions>
-                                    
+
                                     <TextBlock Grid.Column="0" Text="{Binding Name}"  />
-                                    
+
                                     <TextBlock Grid.Column="1" Text="{Binding PID}" />
                                     <TextBlock Grid.Column="2" Text="{Binding Usage}" />
                                     <TextBlock Grid.Column="3" Text="{Binding Memory}" />
@@ -204,31 +205,31 @@
         <PivotItem Header="Performance" >
             <Grid x:Name="PerfGrid">
                 <ScrollViewer>
-                <RelativePanel>
+                    <RelativePanel>
 
-                    <TextBlock x:Name="CPUHeader" Text="Processor:" RelativePanel.AlignTopWithPanel="True" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,5,5,5"/>
-                    <Border x:Name="CPUBorder" RelativePanel.Below="CPUHeader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
-                    <qc:SerialChart x:Name="CPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="CPUBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="CPULoad" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
-                        <qc:SerialChart.Graphs>
-                            <qc:LineGraph Title="CPU Load" ValueMemberPath="CPULoad"/>
-                        </qc:SerialChart.Graphs>
-                    </qc:SerialChart>
-                    <Border x:Name="GPUHeadSeperator" RelativePanel.Below="CPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
-                    <TextBlock x:Name="GPUheader" Text="GPU:" RelativePanel.Below="GPUHeadSeperator" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,8,5,5"/>
-                    <Border x:Name="GPUGraphBorder" RelativePanel.Below="GPUheader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
-                    <qc:SerialChart x:Name="GPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="GPUGraphBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="GPULoad" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
-                        <qc:SerialChart.Graphs >
-                            <qc:LineGraph Title="GPU Load" ValueMemberPath="GPULoad" />
-                            
-                        </qc:SerialChart.Graphs>
-                    </qc:SerialChart>
+                        <TextBlock x:Name="CPUHeader" Text="Processor:" RelativePanel.AlignTopWithPanel="True" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,5,5,5"/>
+                        <Border x:Name="CPUBorder" RelativePanel.Below="CPUHeader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+                        <qc:SerialChart x:Name="CPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="CPUBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="CPULoad" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
+                            <qc:SerialChart.Graphs>
+                                <qc:LineGraph Title="CPU Load" ValueMemberPath="CPULoad"/>
+                            </qc:SerialChart.Graphs>
+                        </qc:SerialChart>
+                        <Border x:Name="GPUHeadSeperator" RelativePanel.Below="CPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+                        <TextBlock x:Name="GPUheader" Text="GPU:" RelativePanel.Below="GPUHeadSeperator" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,8,5,5"/>
+                        <Border x:Name="GPUGraphBorder" RelativePanel.Below="GPUheader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+                        <qc:SerialChart x:Name="GPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="GPUGraphBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="GPULoad" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
+                            <qc:SerialChart.Graphs >
+                                <qc:LineGraph Title="GPU Load" ValueMemberPath="GPULoad" />
 
-                    <qc:SerialChart x:Name="GPUMemory" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="GPUGraph" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="GPUMemShared" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
-                        <qc:SerialChart.Graphs >
-                            <qc:LineGraph Title="GPU Memory (Shared MB)" ValueMemberPath="GPUMemShared"/>
+                            </qc:SerialChart.Graphs>
+                        </qc:SerialChart>
+
+                        <qc:SerialChart x:Name="GPUMemory" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="GPUGraph" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="GPUMemShared" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
+                            <qc:SerialChart.Graphs >
+                                <qc:LineGraph Title="GPU Memory (Shared MB)" ValueMemberPath="GPUMemShared"/>
                                 <qc:LineGraph Title="GPU Memory (Dedicated MB)" ValueMemberPath="GPUMemSelf"/>
                             </qc:SerialChart.Graphs>
-                    </qc:SerialChart>
+                        </qc:SerialChart>
                         <Border x:Name="IOBorder" RelativePanel.Below="GPUMemory" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
                         <TextBlock x:Name="IOHeader" Text="IO:" RelativePanel.Below="IOBorder" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,8,5,5"/>
                         <Border x:Name="IOGraphBorder" RelativePanel.Below="IOHeader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
@@ -246,7 +247,7 @@
                             <qc:SerialChart.Graphs >
                                 <qc:LineGraph Title="Net Read (KB)" ValueMemberPath="NetRead"/>
                                 <qc:LineGraph Title="Net Write (KB)" ValueMemberPath="NetWrite"/>
-                               
+
                             </qc:SerialChart.Graphs>
                         </qc:SerialChart>
                         <Border  x:Name="PagingBorder" RelativePanel.Below="NetData" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
@@ -256,25 +257,97 @@
                             <qc:SerialChart.Graphs >
                                 <qc:LineGraph Title="Paged Pool" ValueMemberPath="PagedPages"/>
                                 <qc:LineGraph Title="Non-Paged Pool" ValueMemberPath="NonPagedPages"/>
-                                
-                                
-                               
+
+
+
                             </qc:SerialChart.Graphs>
                         </qc:SerialChart>
 
                     </RelativePanel>
                 </ScrollViewer>
             </Grid>
-            
+
         </PivotItem>
         <PivotItem Header="Devices">
             <Grid x:Name="Devgrid">
                 <ScrollViewer Margin="5,5,5,5">
-                    <TextBlock x:Name="DevicesText"
+                    <RelativePanel>
+                        <ComboBox x:Name="DriverComboBox" 
+                                  HorizontalAlignment="Stretch" 
+                                  RelativePanel.AlignTopWithPanel="True" 
+                                  RelativePanel.AlignLeftWithPanel="True" 
+                                  RelativePanel.AlignRightWithPanel="True"
+                                  PlaceholderText="Select Device"
+                                  SelectionChanged="DriverComboBox_SelectionChanged">
+
+                        </ComboBox>
+                        <TextBlock x:Name="DevicesText"
+                               RelativePanel.Below="DriverComboBox"
+                               RelativePanel.AlignLeftWithPanel="True"
+                               RelativePanel.AlignRightWithPanel="True"
+                               VerticalAlignment="Stretch"
                                Margin="5,5,5,5"
                                TextWrapping="Wrap"/>
+                    </RelativePanel>
                 </ScrollViewer>
             </Grid>
+        </PivotItem>
+        <PivotItem x:Name="About" Header="About">
+            <ScrollViewer>
+            <RelativePanel>
+                <TextBlock x:Name="AboutHeader"
+                           RelativePanel.AlignLeftWithPanel="True"
+                           RelativePanel.AlignRightWithPanel="True"
+                           RelativePanel.AlignTopWithPanel="True"
+                           Text="Windows Phone Device Portal Client"
+                           Margin="5,5,5,5" TextAlignment="Center" />
+                
+                
+                <TextBlock x:Name="Acknowledgements"
+                           RelativePanel.Below="AboutHeader" 
+                           RelativePanel.AlignRightWithPanel="True"
+                           RelativePanel.AlignLeftWithPanel="True"
+                           Text=""
+                           Margin="5,5,5,5" TextAlignment="Left" />
+                
+                
+                
+                
+                <Button x:Name="UpdateBtn" 
+                        Content="Check For Updates" 
+                        Click="UpdateBtn_Click"
+                        Margin="5,5,5,5"
+                        RelativePanel.AlignBottomWithPanel="True"
+                        RelativePanel.AlignLeftWithPanel="True"
+                        RelativePanel.AlignRightWithPanel="True"
+                        HorizontalAlignment="Stretch"
+                        />
+                
+                <ProgressBar x:Name="ProgressBarDownload" 
+                             RelativePanel.Above="UpdateBtn"
+                             Height="5" Margin="5,5,5,20"
+                             RelativePanel.AlignRightWithPanel="True" 
+                             RelativePanel.AlignLeftWithPanel="True"/>
+                
+                <TextBlock x:Name="UpdateDetailsBox" 
+                           TextWrapping="Wrap"
+                           ScrollViewer.VerticalScrollMode="Enabled"
+                           RelativePanel.Above="ProgressBarDownload" 
+                           
+                           RelativePanel.AlignLeftWithPanel="True"
+                           RelativePanel.AlignRightWithPanel="True"
+                           Margin="5,5,5,20" HorizontalAlignment="Stretch"/>
+                <Button x:Name="DLButton" 
+                        Content="Install"
+                        Margin="5,5,5,5"
+                       Click="DLButton_Click"
+                        RelativePanel.AlignBottomWithPanel="True"
+                        RelativePanel.AlignLeftWithPanel="True"
+                        RelativePanel.AlignRightWithPanel="True"
+                        HorizontalAlignment="Stretch"
+                        />
+            </RelativePanel>
+            </ScrollViewer>
         </PivotItem>
     </Pivot>
 
