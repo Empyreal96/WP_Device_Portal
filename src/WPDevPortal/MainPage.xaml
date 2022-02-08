@@ -5,10 +5,12 @@
     xmlns:local="using:WPDevPortal"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:qc="using:Ailon.QuickCharts"
     RequestedTheme="Dark"
+    Loaded="Page_Loaded"
     mc:Ignorable="d" Background="#FF1E1E1E">
-    <Pivot Title="WP Device Portal">
-        <PivotItem Header="Home" ScrollViewer.IsHorizontalScrollChainingEnabled="False">
+    <Pivot Title="WP Device Portal" x:Name="MainPivot">
+        <PivotItem Header="Home" x:Name="HomePivot" ScrollViewer.IsHorizontalScrollChainingEnabled="False">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -40,7 +42,7 @@
 
             </Grid>
         </PivotItem>
-        <PivotItem Header="Applications">
+        <PivotItem Header="Applications" x:Name="ApplicationPivot">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -99,7 +101,7 @@
                            />
             </Grid>
         </PivotItem>
-        <PivotItem Header="Processes" ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.IsHorizontalScrollChainingEnabled="False">
+        <PivotItem Header="Processes" x:Name="ProcessesPivot" ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.IsHorizontalScrollChainingEnabled="False">
             <Grid x:Name="processesAppsContainer">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -199,11 +201,68 @@
                 </ScrollViewer>
             </Grid>
         </PivotItem>
-        <PivotItem Header="Performance">
+        <PivotItem Header="Performance" >
             <Grid x:Name="PerfGrid">
-                <ScrollViewer  Margin="5,5,5,5">
-                <TextBlock x:Name="PerfTextBox"
-                           Margin="5,5,5,5"/>
+                <ScrollViewer>
+                <RelativePanel>
+
+                    <TextBlock x:Name="CPUHeader" Text="Processor:" RelativePanel.AlignTopWithPanel="True" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,5,5,5"/>
+                    <Border x:Name="CPUBorder" RelativePanel.Below="CPUHeader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+                    <qc:SerialChart x:Name="CPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="CPUBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="CPULoad" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
+                        <qc:SerialChart.Graphs>
+                            <qc:LineGraph Title="CPU Load" ValueMemberPath="CPULoad"/>
+                        </qc:SerialChart.Graphs>
+                    </qc:SerialChart>
+                    <Border x:Name="GPUHeadSeperator" RelativePanel.Below="CPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+                    <TextBlock x:Name="GPUheader" Text="GPU:" RelativePanel.Below="GPUHeadSeperator" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,8,5,5"/>
+                    <Border x:Name="GPUGraphBorder" RelativePanel.Below="GPUheader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+                    <qc:SerialChart x:Name="GPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="GPUGraphBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="GPULoad" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
+                        <qc:SerialChart.Graphs >
+                            <qc:LineGraph Title="GPU Load" ValueMemberPath="GPULoad" />
+                            
+                        </qc:SerialChart.Graphs>
+                    </qc:SerialChart>
+
+                    <qc:SerialChart x:Name="GPUMemory" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="GPUGraph" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="GPUMemShared" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
+                        <qc:SerialChart.Graphs >
+                            <qc:LineGraph Title="GPU Memory (Shared MB)" ValueMemberPath="GPUMemShared"/>
+                                <qc:LineGraph Title="GPU Memory (Dedicated MB)" ValueMemberPath="GPUMemSelf"/>
+                            </qc:SerialChart.Graphs>
+                    </qc:SerialChart>
+                        <Border x:Name="IOBorder" RelativePanel.Below="GPUMemory" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+                        <TextBlock x:Name="IOHeader" Text="IO:" RelativePanel.Below="IOBorder" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,8,5,5"/>
+                        <Border x:Name="IOGraphBorder" RelativePanel.Below="IOHeader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+                        <qc:SerialChart x:Name="IOData" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="IOGraphBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="IORead" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
+                            <qc:SerialChart.Graphs >
+                                <qc:LineGraph Title="IO Read (MB)" ValueMemberPath="IORead"/>
+                                <qc:LineGraph Title="IO Write (MB)" ValueMemberPath="IOWrite"/>
+                                <qc:LineGraph Title="IO Other (MB)" ValueMemberPath="IOOther"/>
+                            </qc:SerialChart.Graphs>
+                        </qc:SerialChart>
+                        <Border x:Name="NetBorder" RelativePanel.Below="IOData" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+                        <TextBlock x:Name="Netheader" Text="Network:" RelativePanel.Below="NetBorder"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,8,5,5"/>
+                        <Border x:Name="NetGraphBorder" RelativePanel.Below="Netheader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+                        <qc:SerialChart x:Name="NetData" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="NetGraphBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="NetRead" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
+                            <qc:SerialChart.Graphs >
+                                <qc:LineGraph Title="Net Read (KB)" ValueMemberPath="NetRead"/>
+                                <qc:LineGraph Title="Net Write (KB)" ValueMemberPath="NetWrite"/>
+                               
+                            </qc:SerialChart.Graphs>
+                        </qc:SerialChart>
+                        <Border  x:Name="PagingBorder" RelativePanel.Below="NetData" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+                        <TextBlock x:Name="PagingHeader" Text="Paging:" RelativePanel.Below="PagingBorder"    RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,8,5,5"/>
+                        <Border  x:Name="PagingGraphBorder" RelativePanel.Below="PagingHeader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+                        <qc:SerialChart x:Name="PagingData" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="PagingGraphBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="PagedPages" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
+                            <qc:SerialChart.Graphs >
+                                <qc:LineGraph Title="Paged Pool" ValueMemberPath="PagedPages"/>
+                                <qc:LineGraph Title="Non-Paged Pool" ValueMemberPath="NonPagedPages"/>
+                                
+                                
+                               
+                            </qc:SerialChart.Graphs>
+                        </qc:SerialChart>
+
+                    </RelativePanel>
                 </ScrollViewer>
             </Grid>
             

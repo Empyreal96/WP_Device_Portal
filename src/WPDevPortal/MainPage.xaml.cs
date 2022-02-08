@@ -16,6 +16,7 @@ using System.Collections.ObjectModel;
 using Windows.UI.Xaml.Media;
 using Windows.Security.ExchangeActiveSyncProvisioning;
 using System.Linq;
+using System.Threading;
 
 namespace WPDevPortal
 {
@@ -42,6 +43,8 @@ namespace WPDevPortal
         private string pkgPublisher { get; set; }
         private string pkgVersion { get; set; }
         private bool IsMatching { get; set; }
+        private DispatcherTimer _timer = new DispatcherTimer();
+        private bool isConnected { get; set; }
         /// <summary>
         /// The main page constructor.
         /// </summary>
@@ -49,6 +52,8 @@ namespace WPDevPortal
         {
             this.InitializeComponent();
             this.EnableDeviceControls(false);
+            
+
 
             var str = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily;
             if (str == "Windows.Desktop")
@@ -69,8 +74,19 @@ namespace WPDevPortal
             }
 
         }
+        private void Page_Loaded(object sender, RoutedEventArgs e)
+        {
+
+            this.DataContext = this;
+
+            _timer.Interval = TimeSpan.FromMilliseconds(500);
+            _timer.Tick += UpdateRealTimeData;
+            _timer.Start();
 
 
+
+        }
+       
 
         /// <summary>
         /// TextChanged handler for the address text box.
@@ -104,16 +120,24 @@ namespace WPDevPortal
         /// <param name="e">The arguments associated with this event.</param>
         private async void ConnectToDevice_Click(object sender, RoutedEventArgs e)
         {
+            
+           
             try
             {
+                
                 ProgBar.Visibility = Visibility.Visible;
                 ProgBar.IsEnabled = true;
                 ProgBar.IsIndeterminate = true;
-                this.EnableConnectionControls(false);
+                
+                                   this.EnableConnectionControls(false);
                 this.EnableDeviceControls(false);
 
                 this.ClearOutput();
-
+                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                               () =>
+                               {
+                                   commandOutput.Text = "Connecting, Please wait..";
+                               });
                 bool allowUntrusted = true;
 
                 portal = new DevicePortal(
@@ -121,21 +145,31 @@ namespace WPDevPortal
                         WDPAddress,
                         WDPUser,
                         WDPPass));
+               
+               
                 EasClientDeviceInformation eas = new EasClientDeviceInformation();
                 string DeviceManufacturer = eas.SystemManufacturer;
                 string DeviceModel = eas.SystemProductName;
                 
-                address.BorderBrush = new SolidColorBrush(Windows.UI.Colors.Green);
+                
                 sb = new StringBuilder();
                 sb1 = new StringBuilder();
-                sb.Append(this.commandOutput.Text);
-                sb.AppendLine("Connecting...");
+                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                               () =>
+                               {
+                                   commandOutput.Text = "";
+                               });
+                                   sb.Append(this.commandOutput.Text);
+                sb.AppendLine("");
                 this.commandOutput.Text = sb.ToString();
                 portal.ConnectionStatus += async (portal, connectArgs) =>
                 {
+                    
                     if (connectArgs.Status == DeviceConnectionStatus.Connected)
                     {
+                        var token = processesAppsContainerScroll.RegisterPropertyChangedCallback(ScrollViewer.HorizontalOffsetProperty, OnScrollChangedChange);
                         
+
 
                         sb.Append("Connected to: ");
                         sb.AppendLine(portal.Address);
@@ -157,9 +191,6 @@ namespace WPDevPortal
                         BatteryState batteryResult = batteryStat.Result;
                         sb.Append("Battery Level: ");
                         sb.AppendLine($"{batteryResult.Level.ToString()}%");
-                        sb.Append("Estimated Time Left: ");
-                        sb.AppendLine($"{batteryResult.EstimatedTime.TotalMinutes.ToString()}");
-
                         
 
                         await Task.Run(async () =>
@@ -173,7 +204,7 @@ namespace WPDevPortal
                                 () =>
                                     {
                                         appsComboBox.Items.Add(pkg.FullName);
-
+                                        address.BorderBrush = new SolidColorBrush(Windows.UI.Colors.Green);
 
                                     });
                             }
@@ -184,7 +215,7 @@ namespace WPDevPortal
                         await Task.Run(() =>
                         {
                             FetchProcessInfo();
-                            FetchPerfInfo();
+                            //FetchPerfInfo();
                             FetchHWInfo();
                         });
                         await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
@@ -194,6 +225,14 @@ namespace WPDevPortal
                                    ProgBar.IsEnabled = false;
                                    ProgBar.IsIndeterminate = false;
                                });
+
+
+
+
+                        isConnected = true;
+                        
+                            FillInitialRealTimeData();
+                        
 
                     }
                     else if (connectArgs.Status == DeviceConnectionStatus.Failed)
@@ -234,7 +273,10 @@ namespace WPDevPortal
             }
         }
 
-
+       public void timer_Tick(object sender, EventArgs e)
+        {
+            FetchPerfInfo();
+        }
 
         /// <summary>
         /// Enables or disables the Connect button based on the current state of the
@@ -745,7 +787,7 @@ namespace WPDevPortal
             await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                                 () =>
                                 {
-                                    foreach (var processItem in processes)
+                                    foreach (var processItem in processes.OrderBy(item => item.Name)    )
                                     {
                                         string PID = processItem.ProcessId.ToString(); //PID Value
                                         string SessionID = processItem.SessionId.ToString(); //PID Value
@@ -862,75 +904,37 @@ namespace WPDevPortal
                 }
             }
         }
+
+
+        private void OnScrollChangedChange(DependencyObject sender, DependencyProperty e)
+        {
+            try
+            {
+                var currentHOffset = processesAppsContainerScroll.HorizontalOffset;
+                processesAppsHeaderContainerScroll.ChangeView(currentHOffset, 0, 1);
+            }
+            catch (Exception ex)
+            {
+
+            }
+        }
+
+
+      
+        private SystemPerformanceInformation perfResult { get; set; }
+       
+        private string PerformanceResults;
         private string engines { get; set; }
         private async void FetchPerfInfo()
         {
             Task<SystemPerformanceInformation> perf = portal.GetSystemPerfAsync();
-            SystemPerformanceInformation perfResult = perf.Result;
-            string PerformanceResults = $"Accurate on: {DateTime.Now.ToString("MM/dd/yyyy h:mm tt").Replace("?", ":")}\n\n";
+            perfResult = perf.Result;
 
-            //cpu
-            string cpuLoad = perfResult.CpuLoad.ToString();
-            PerformanceResults += $"Processor:\n" +
-                $"CPU Load: {cpuLoad}%\n\n";
+            
 
+           
 
-            //gpu
-            List<GpuAdapter> gpuInfo = perfResult.GpuData.Adapters;
-            PerformanceResults += "GPU:\n";
-            engines = "";
-            foreach (var gpu in gpuInfo)
-            {
-                string gpuResult;
-                string gpuDescription = gpu.Description;
-                ulong dedicatedMem = gpu.DedicatedMemory;
-                ulong dedicatedMemUsed = gpu.DedicatedMemoryUsed;
-                ulong systemMem = gpu.SystemMemory;
-                ulong systemMemUsed = gpu.SystemMemoryUsed;
-                List<double> gpuUtilization = gpu.EnginesUtilization;
-                int i = -1;
-
-                foreach (double engine in gpuUtilization)
-                {
-                    i++;
-                    engines += $"Engine {i}: {String.Format("Value: {0:P2}.", engine)}\n";
-
-                }
-                gpuResult =
-                    $"{gpuDescription}\n" +
-                    $"Dedicated Mem: {((long)dedicatedMem).ToFileSize()}\n" +
-                    $"Dedicated Used: {((long)dedicatedMemUsed).ToFileSize()}\n" +
-                    $"System Memory: {((long)systemMem).ToFileSize()}\n" +
-                    $"System Mem Used: {((long)systemMemUsed).ToFileSize()}\n" +
-                    $"GPU Utilisation:\n{engines}\n\n";
-
-
-                PerformanceResults += gpuResult;
-
-
-            }
-
-            //network
-
-            NetworkPerformanceData networkData = perfResult.NetworkData;
-            ulong netIn = networkData.BytesIn;
-            ulong netOut = networkData.BytesOut;
-            PerformanceResults +=
-                $"Network:\n" +
-                $"Bytes In: {((long)netIn).ToFileSize()}\n" +
-                $"Bytes Out: {((long)netOut).ToFileSize()}\n\n";
-
-            //IO
-
-            ulong ioRead = perfResult.IoReadSpeed;
-            ulong ioWrite = perfResult.IoWriteSpeed;
-            ulong ioOther = perfResult.IoOtherSpeed;
-            PerformanceResults +=
-                $"IO:\n" +
-                $"IO Read: {((long)ioRead).ToFileSize()}\n" +
-                $"IO Write: {((long)ioWrite).ToFileSize()}\n" +
-                $"IO Other: {((long)ioOther).ToFileSize()}\n\n";
-
+          
 
             //Paging/Memory
             uint pagedPoolPages = perfResult.PagedPoolPages;
@@ -954,11 +958,7 @@ namespace WPDevPortal
                 $"Total Installed Pages: {totalInstalledPages}\n\n";
 
 
-            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
-                               () =>
-                               {
-                                   PerfTextBox.Text = PerformanceResults;
-                               });
+          
         }
 
         private List<string> HWList = new List<string>();
@@ -995,5 +995,258 @@ namespace WPDevPortal
                                });
             
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+        public ObservableCollection<RealTimeDataItem> RealTimeData { get { return _realTimeData; } }
+        private ObservableCollection<RealTimeDataItem> _realTimeData = new ObservableCollection<RealTimeDataItem>();
+        long gpuSharedTotal;
+        long gpuSharedUsed;
+        long gpuSelfTotal;
+        long gpuSelfUsed;
+        string gpuname;
+        /// <summary>
+        /// 
+        /// </summary>
+        private async void FillInitialRealTimeData()
+        {
+            SystemPerformanceInformation perf = await portal.GetSystemPerfAsync();
+
+            var startDate = DateTime.Now.AddSeconds(-15);
+            var cpuload = perf.CpuLoad;
+            var gpu = perf.GpuData.Adapters;
+            var network = perf.NetworkData;
+            double gpuresult = 0;
+            uint pagedPoolPages = perf.PagedPoolPages;
+            uint nonpagedPoolPages = perf.NonPagedPoolPages;
+            uint pageSize = perf.PageSize;
+            ulong pagesAvailable = perf.AvailablePages;
+            uint pagesCommited = perf.CommittedPages;
+            uint commitLimit = perf.CommitLimit;
+            uint pagesTotal = perf.TotalPages;
+            ulong totalInstalledPages = perf.TotalInstalledKb;
+            long KB = 1024;
+            long MB = 1024 * 1024;
+            long GB = MB * 1024;
+            double convertedFileSize;
+            
+            foreach (var adapter in gpu)
+            {
+                
+                var maingpu = adapter.EnginesUtilization;
+                foreach (var engine in maingpu)
+                {
+                    gpuname = adapter.Description;
+                    gpuresult += engine;
+                }
+            }
+            foreach (var gpumem in gpu)
+            {
+                convertedFileSize = (long)gpumem.SystemMemory / MB;
+                gpuSharedTotal = (long)convertedFileSize;
+                convertedFileSize = (long)gpumem.SystemMemoryUsed / MB;
+                gpuSharedUsed = (long)convertedFileSize;
+                convertedFileSize = (long)gpumem.DedicatedMemory / MB;
+                gpuSelfTotal = (long)convertedFileSize;
+                convertedFileSize = (long)gpumem.DedicatedMemoryUsed / MB;
+                gpuSelfUsed = (long)convertedFileSize;
+            }
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                              () =>
+                              {
+                                  GPUheader.Text += $" {gpuname}";
+                              });
+
+            double ioreaddata = (long)perf.IoReadSpeed / MB;
+            double iowritedata = (long)perf.IoWriteSpeed / MB;
+            double iootherdata = (long)perf.IoOtherSpeed / MB;
+            double netread = ((long)network.BytesIn) / KB;
+            double netwrite = ((long)network.BytesOut) / KB;
+            double totalpages = ((long)pagesTotal);
+            double pagescommited = ((long)pagesCommited);
+            double pagesavailable = ((long)pagesAvailable);
+            double pagesize = ((long)pageSize) / MB;
+            double nonpaged = ((long)nonpagedPoolPages);
+            double pagedpages = (long)pagedPoolPages;
+            var rnd = new Random();
+
+            for (var date = startDate; date < DateTime.Now; date = date.AddSeconds(1))
+            {
+                RealTimeData.Add(new RealTimeDataItem()
+                {
+                    Seconds = date.Second,
+                    CPULoad = (int)cpuload,
+                    GPULoad = (int)gpuresult,
+                    GPUMemSharedTotal = gpuSharedTotal,
+                    GPUMemShared = gpuSharedUsed,
+                    GPUMemSelf = gpuSelfUsed,
+                    GPUMemSelfTotal = gpuSelfTotal,
+                    IORead = ioreaddata,
+                    IOWrite = iowritedata,
+                    IOOther = iootherdata,
+                    NetRead = netread,
+                    NetWrite = netwrite,
+                    PagedPages = pagedpages,
+                    NonPagedPages = nonpaged,
+                    PagesAvailable = pagesavailable,
+                    PagesCommited = pagescommited,
+                    PageSize = pageSize,
+                    TotalPages = totalpages
+                });
+
+                cpuload = cpuload < 0 ? 0 : cpuload;
+                gpuresult = gpuresult < 0 ? 0 : gpuresult;
+                gpuSharedUsed = gpuSharedUsed < 0 ? 0 : gpuSharedUsed;
+                gpuSelfUsed = gpuSelfUsed < 0 ? 0 : gpuSelfUsed;
+                ioreaddata = ioreaddata < 0 ? 0 : ioreaddata;
+                iowritedata = iowritedata < 0 ? 0 : iowritedata;
+                iootherdata = iootherdata < 0 ? 0 : iootherdata;
+                netread = netread < 0 ? 0 : netread;
+                netwrite = netwrite < 0 ? 0 : netwrite;
+                totalpages = totalpages < 0 ? 0 : totalpages;
+                pagescommited = pagescommited < 0 ? 0 : pagescommited;
+                pagesavailable = pagesavailable < 0 ? 0 : pagesavailable;
+                pagesize = pagesize < 0 ? 0 : pagesize;
+                nonpaged = nonpaged < 0 ? 0 : nonpaged;
+                pagedpages = pagedpages < 0 ? 0 : pagedpages;
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void UpdateRealTimeData(object sender, object e)
+        {
+            if (isConnected == true)
+            {
+                SystemPerformanceInformation perf = await portal.GetSystemPerfAsync();
+                
+                RealTimeData.RemoveAt(0);
+                var gpu = perf.GpuData.Adapters;
+                var network = perf.NetworkData;
+                uint pagedPoolPages = perf.PagedPoolPages;
+                uint nonpagedPoolPages = perf.NonPagedPoolPages;
+                uint pageSize = perf.PageSize;
+                ulong pagesAvailable = perf.AvailablePages;
+                uint pagesCommited = perf.CommittedPages;
+                uint commitLimit = perf.CommitLimit;
+                uint pagesTotal = perf.TotalPages;
+                ulong totalInstalledPages = perf.TotalInstalledKb;
+                
+                double gpuresult = 0;
+                long KB = 1024;
+                long MB = 1024 * 1024;
+                long GB = MB * 1024;
+                double convertedFileSize;
+               
+                foreach (var adapter in gpu)
+                {
+                    var maingpu = adapter.EnginesUtilization;
+                    foreach (var engine in maingpu)
+                    {
+                        gpuresult += engine;
+                    }
+                }
+                foreach (var gpumem in gpu)
+                {
+                    convertedFileSize = (long)gpumem.SystemMemory / MB;
+                    gpuSharedTotal = (long)convertedFileSize;
+                    convertedFileSize = (long)gpumem.SystemMemoryUsed / MB;
+                    gpuSharedUsed = (long)convertedFileSize;
+                    convertedFileSize = (long)gpumem.DedicatedMemory / MB;
+                    gpuSelfTotal = (long)convertedFileSize;
+                    convertedFileSize = (long)gpumem.DedicatedMemoryUsed / MB;
+                    gpuSelfUsed = (long)convertedFileSize;
+                }
+                double ioreaddata = (long)perf.IoReadSpeed / MB;
+                double iowritedata = (long)perf.IoWriteSpeed / MB;
+                double iootherdata = (long)perf.IoOtherSpeed / MB;
+                double netread = ((long)network.BytesIn) / KB;
+                double netwrite = ((long)network.BytesOut) / KB;
+                double totalpages = ((long)pagesTotal);
+                double pagescommited = ((long)pagesCommited);
+                double pagesavailable = ((long)pagesAvailable);
+                double pagesize = ((long)pageSize) / MB;
+                double nonpaged = ((long)nonpagedPoolPages);
+                double pagedpages = (long)pagedPoolPages;
+                var rnd = new Random();
+                var cpuload = perf.CpuLoad;
+                cpuload = cpuload < 0 ? 0 : cpuload;
+                gpuresult = gpuresult < 0 ? 0 : gpuresult;
+                gpuSharedUsed = gpuSharedUsed < 0 ? 0 : gpuSharedUsed;
+                gpuSelfUsed = gpuSelfUsed < 0 ? 0 : gpuSelfUsed;
+                ioreaddata = ioreaddata < 0 ? 0 : ioreaddata;
+                iowritedata = iowritedata < 0 ? 0 : iowritedata;
+                iootherdata = iootherdata < 0 ? 0 : iootherdata;
+                netread = netread < 0 ? 0 : netread;
+                netwrite = netwrite < 0 ? 0 : netwrite;
+                totalpages = totalpages < 0 ? 0 : totalpages;
+                pagescommited = pagescommited < 0 ? 0 : pagescommited;
+                pagesavailable = pagesavailable < 0 ? 0 : pagesavailable;
+                pagesize = pagesize < 0 ? 0 : pagesize;
+                nonpaged = nonpaged < 0 ? 0 : nonpaged;
+                pagedpages = pagedpages < 0 ? 0 : pagedpages;
+
+                RealTimeData.Add(new RealTimeDataItem()
+                {
+                    Seconds = DateTime.Now.Second,
+                    CPULoad = (int)cpuload,
+                    GPULoad = (int)gpuresult,
+                     GPUMemSharedTotal = gpuSharedTotal,
+                    GPUMemShared = gpuSharedUsed,
+                    GPUMemSelf = gpuSelfUsed,
+                    GPUMemSelfTotal = gpuSelfTotal,
+                    IORead = ioreaddata,
+                    IOWrite = iowritedata,
+                    IOOther = iootherdata,
+                    NetRead = netread,
+                    NetWrite = netwrite,
+                    PagedPages = pagedpages,
+                    NonPagedPages = nonpaged,
+                    PagesAvailable = pagesavailable,
+                    PagesCommited = pagescommited,
+                    PageSize = pageSize,
+                    TotalPages = totalpages
+
+                });
+            }
+        }
+
+
+        public class RealTimeDataItem
+        {
+            public int Seconds { get; set; }
+            public int CPULoad { get; set; }
+            public int GPULoad { get; set; }
+            public double GPUMemShared { get; set; }
+            public double GPUMemSelf { get; set; }
+            public double GPUMemSharedTotal { get; set; }
+            public double GPUMemSelfTotal { get; set; }
+            public double IORead { get; set; }
+            public double IOWrite { get; set; }
+            public double IOOther { get; set; }
+            public double NetRead { get; set; }
+            public double NetWrite { get; set; }
+            public double PagesAvailable { get; set; }
+            public double PagesCommited { get; set; }
+            public double PageSize { get; set; }
+            public double PagedPages { get; set; }
+            public double NonPagedPages { get; set; }
+            public double TotalPages { get; set; }
+        }
+
+        
     }
 }

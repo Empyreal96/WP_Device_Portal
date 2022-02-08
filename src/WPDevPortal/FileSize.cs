@@ -20,7 +20,8 @@ namespace WPDevPortal
             }
         }
     }
-    public class FileSizeFormatProvider : IFormatProvider, ICustomFormatter
+
+public class FileSizeFormatProvider : IFormatProvider, ICustomFormatter
     {
         public object GetFormat(Type formatType)
         {
