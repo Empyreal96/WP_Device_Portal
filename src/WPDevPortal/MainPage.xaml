@@ -43,6 +43,7 @@
             </Grid>
         </PivotItem>
         <PivotItem Header="Applications" x:Name="ApplicationPivot">
+            
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -50,6 +51,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
+                
                 <RelativePanel Grid.Row="1">
                     <TextBlock x:Name="applicationLoadText"
                                Text="Choose an application to install"
@@ -94,11 +96,25 @@
                             RelativePanel.AlignRightWithPanel="True"
                             HorizontalAlignment="Stretch"/>
                 </RelativePanel>
-                <TextBlock Grid.Row="3"
+                
+                <RelativePanel Grid.Row="3">
+                    <ProgressBar x:Name="AppProgbar" Visibility="Collapsed" 
+                                 RelativePanel.AlignTopWithPanel="True" 
+                                 RelativePanel.AlignLeftWithPanel="True" 
+                                 RelativePanel.AlignRightWithPanel="True"/>
+                    <ScrollViewer  RelativePanel.AlignLeftWithPanel="True" RelativePanel.Below="AppProgbar" RelativePanel.AlignRightWithPanel="True">
+                    <TextBlock Grid.Row="3"
+                           RelativePanel.Below="AppLogoImg"
+                           RelativePanel.AlignLeftWithPanel="True"
+                           RelativePanel.AlignRightWithPanel="True"
                            x:Name="applicationList"
+                               ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                           ScrollViewer.VerticalScrollMode="Enabled"
                            TextWrapping="Wrap"
                            Margin="5,5,5,5"
                            />
+                    </ScrollViewer>
+                </RelativePanel>
             </Grid>
         </PivotItem>
         <PivotItem Header="Processes" x:Name="ProcessesPivot" ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.IsHorizontalScrollChainingEnabled="False">

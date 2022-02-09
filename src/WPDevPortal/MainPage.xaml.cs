@@ -23,6 +23,8 @@ using Octokit;
 using System.IO;
 
 using LightBuzz.Archiver;
+using Windows.Management.Deployment;
+using Windows.UI.Xaml.Media.Imaging;
 
 namespace WPDevPortal
 {
@@ -67,7 +69,8 @@ namespace WPDevPortal
                 $"This software uses Open Source libraries.\n" +
                 $"• WindowsDevicePortalWrapper and Sample by Microsoft.\n" +
                 $"• UWPQuickCharts by 'ailon'\n" +
-                $"• 'ArchiverPlus' Class by Lightbuzz(?)\n\n" +
+                $"• Octokit by Github\n" +
+                $"• ArchiverPlus Class by Lightbuzz(?)\n\n" +
                 $"Thanks to BAstifan for help with a few parts";
             var str = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily;
             if (str == "Windows.Desktop")
@@ -370,8 +373,8 @@ namespace WPDevPortal
             }
             catch (Exception ex)
             {
-                sb.AppendLine("Failed to get IP config info.");
-                sb.AppendLine(ex.GetType().ToString() + " - " + ex.Message);
+                //sb.AppendLine("Failed to get IP config info.");
+                //sb.AppendLine(ex.GetType().ToString() + " - " + ex.Message);
             }
 
             commandOutput.Text = sb.ToString();
@@ -590,7 +593,8 @@ namespace WPDevPortal
 
         }
 
-
+        BitmapImage bitmap;
+        string deplist;
         /// <summary>
         /// Fetch Package information
         /// </summary>
@@ -599,13 +603,15 @@ namespace WPDevPortal
         {
             try
             {
+                PackageManager pacman = new PackageManager();
+                
                 sb1.Append(applicationList.Text);
                 sb1.AppendLine("Package Info:\n");
                 foreach (var pkg in packages.Result.Packages)
                 {
                     if (pkg.FullName == selectedItem)
                     {
-
+                        
                         IsMatching = true;
                         pkgFullName = pkg.FullName;
                         pkgAppID = pkg.AppId;
@@ -616,18 +622,34 @@ namespace WPDevPortal
                 }
                 if (IsMatching == true)
                 {
-                    sb1.Append("Full Name: ");
-                    sb1.AppendLine(pkgFullName);
-                    sb1.Append("AppID: ");
-                    sb1.AppendLine(pkgAppID);
-                    sb1.Append("Origin: ");
-                    sb1.AppendLine(pkgOrigin);
-                    sb1.Append("Publisher: ");
-                    sb1.AppendLine(pkgPublisher);
-                    sb1.Append("Version: ");
-                    sb1.AppendLine(pkgVersion);
+                    
+                    var test = pacman.FindPackageForUser("", pkgFullName);
+                    deplist = string.Empty;
+                    foreach (var dep in test.Dependencies)
+                    {
+                        deplist += $"{dep.DisplayName}\n";
+                    }
+                    sb1.Append("Full Name: \n");
+                    sb1.AppendLine($"{pkgFullName}\n");
+                    sb1.Append("AppID: \n");
+                    sb1.AppendLine($"{pkgAppID}\n");
+                    sb1.Append("Origin: \n");
+                    sb1.AppendLine($"{pkgOrigin}\n");
+                    sb1.Append("Publisher: \n");
+                    sb1.AppendLine($"{pkgPublisher}\n");
+                    sb1.Append("Version: \n");
+                    sb1.AppendLine($"{pkgVersion}\n");
+                    sb1.Append("Install Date: \n");
+                    sb1.AppendLine($"{test.InstalledDate.ToString()}\n");
+                    sb1.Append("Location: \n");
+                    sb1.AppendLine($"{test.InstalledLocation.Path}\n");
+                    sb1.Append("Dependencies:\n");
+                    sb1.AppendLine($"{deplist}\n");
+                    
+
                 }
                 applicationList.Text = sb1.ToString();
+                
             }
             catch (Exception ex)
             {
@@ -693,9 +715,15 @@ namespace WPDevPortal
         {
             try
             {
+                AppProgbar.Visibility = Visibility.Visible;
+                AppProgbar.IsIndeterminate = true;
+                AppProgbar.IsEnabled = true;
                 applicationList.Text = $"Please Wait, Attempting to uninstall {pkgFullName}\n";
                 await portal.UninstallApplicationAsync(pkgFullName);
                 applicationList.Text = "Uninstall Complete!";
+                AppProgbar.Visibility = Visibility.Collapsed;
+                AppProgbar.IsIndeterminate = false;
+                AppProgbar.IsEnabled = false;
             }
             catch (Exception ex)
             {
@@ -777,10 +805,15 @@ namespace WPDevPortal
             try
             {
 
-
+                AppProgbar.Visibility = Visibility.Visible;
+                AppProgbar.IsIndeterminate = true;
+                AppProgbar.IsEnabled = true;
                 applicationList.Text = $"Installing {pkgFile.Name}";
                 await portal.InstallApplicationAsync(pkgFile.Name, pkgFile, depList);
                 applicationList.Text = "Complete!";
+                AppProgbar.Visibility = Visibility.Collapsed;
+                AppProgbar.IsIndeterminate = false;
+                AppProgbar.IsEnabled = false;
             }
             catch (Exception ex)
             {
@@ -1340,11 +1373,11 @@ namespace WPDevPortal
         /// 
         /// MUST CHANGE THESE BEFORE EACH PUBLIC GITHUB RELEASE
         /// </summary>
-        public static string CurrentBuildVersion = "1.0.13.0";
-        public static string PreviousBuildVersion = "1.0.12.0";
-        public static string NextBuildVersion = "1.0.14.0";
-        public static string UploadedFileName = "WPDevPortal_1.0.14.0_Test.zip";
-        public static string AppxUpdateName = "WPDevPortal_1.0.14.0_x86_x64_arm.appxbundle";
+        public static string CurrentBuildVersion = "1.0.14.0";
+        public static string PreviousBuildVersion = "1.0.13.0";
+        public static string NextBuildVersion = "1.0.15.0";
+        public static string UploadedFileName = "WPDevPortal_1.0.15.0_Test.zip";
+        public static string AppxUpdateName = "WPDevPortal_1.0.15.0_x86_x64_arm.appxbundle";
 
         public StorageFolder folder { get; set; }
         public StorageFile file { get; set; }
