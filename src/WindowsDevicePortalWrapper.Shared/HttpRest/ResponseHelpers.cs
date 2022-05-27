@@ -54,11 +54,14 @@ namespace Microsoft.Tools.WindowsDevicePortal
                     jsonStream.SetLength(0);
                     var sw = new StreamWriter(jsonStream);
                     sw.Write(rawJsonString);
+                    
                     sw.Flush();
                 }
-
+                
                 jsonStream.Seek(0, SeekOrigin.Begin);
             }
+           // StreamReader reader = new StreamReader(jsonStream);
+            //Debug.WriteLine(reader.ReadToEnd());
         }
 
         /// <summary>

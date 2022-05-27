@@ -6,6 +6,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
 
@@ -153,6 +155,10 @@ namespace Microsoft.Tools.WindowsDevicePortal
         {
             if (args.Message != null)
             {
+                foreach (var item in args.Message.Events)
+                {
+                    Debug.WriteLine($"WDP ETW: {item.Provider} | {string.Join("\n", item.Keys.ToArray())}");
+                }
                 this.RealtimeEventsMessageReceived?.Invoke(
                     this,
                     args);
@@ -183,10 +189,11 @@ namespace Microsoft.Tools.WindowsDevicePortal
                     {
                         return this.stashedList;
                     }
-
+                    //Debug.WriteLine($"WDPW: {this.Events}\n\n{this.RawEvents}");
                     List<EtwEventInfo> events = new List<EtwEventInfo>();
                     foreach (Dictionary<string, string> dic in this.RawEvents)
                     {
+                        
                         events.Add(new EtwEventInfo(dic));
                     }
 
@@ -276,6 +283,65 @@ namespace Microsoft.Tools.WindowsDevicePortal
                 get
                 {
                     return ulong.Parse(this["Timestamp"]);
+                }
+            }
+
+            /// <summary>
+            /// Gets ProcessId
+            /// </summary>
+           public uint PID
+            {
+                get
+                {
+                    return uint.Parse(this["ProcessId"]);
+                }
+            }  
+
+            /// <summary>
+            /// 
+            /// </summary>
+            public string CacheHit
+            {
+                get
+                {
+                    try
+                    {
+                        var res = this["CacheHit"];
+                        if (res != null)
+                        {
+                            return res;
+                        }
+                        else
+                        {
+                            return "NotApplicable";
+                        }
+                    } catch (KeyNotFoundException ex)
+                    {
+                        return "NotApplicable";
+                    }
+                }
+            }
+
+            public string TaskName
+            {
+                get
+                {
+                    try
+                    {
+                        
+                        if (this["TaskName"] != null)
+                        {
+                            return this["TaskName"];
+                        }
+                        else
+                        {
+                            return "NotApplicable";
+                        }
+                    }
+                    catch (KeyNotFoundException ex)
+                    {
+                        return "NotApplicable";
+                    }
                 }
             }
         }

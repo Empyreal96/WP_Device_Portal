@@ -55,5 +55,41 @@ namespace ExceptionHelper
             wdpErr.Commands.Add(new UICommand("Close"));
             await wdpErr.ShowAsync();
         }
+        public static async void WDPLocalAppDataError(string pkgFullName)
+        {
+            var wdpErr = new MessageDialog($"ERROR: Issue accessing {pkgFullName}, you may not have permission to view this folder.");
+            wdpErr.Commands.Add(new UICommand("Close"));
+            await wdpErr.ShowAsync();
+        }
+        public static async void WDPSuccessDownload(string fileName, string Output)
+        {
+            var wdpErr = new MessageDialog($"{fileName} was successfully saved to {Output}");
+            wdpErr.Commands.Add(new UICommand("Close"));
+            await wdpErr.ShowAsync();
+        }
+        public static async void WDPDownloadFail(string fileName, string Output, Exception ex)
+        {
+            var wdpErr = new MessageDialog($"{fileName} failed to save to {Output}\n\nERROR: {ex.Message}\n\n{ex.StackTrace}");
+            wdpErr.Commands.Add(new UICommand("Close"));
+            await wdpErr.ShowAsync();
+        }
+        public static async void WDPUploadSuccess(string Output, string wdpaddress)
+        {
+            var wdpErr = new MessageDialog($"Upload to {wdpaddress}:{Output} successfully, Check device to confirm");
+            wdpErr.Commands.Add(new UICommand("Close"));
+            await wdpErr.ShowAsync();
+        }
+        public static async void WDPUploadSuccess1(string Output, string wdpaddress)
+        {
+            var wdpErr = new MessageDialog($"Upload to {wdpaddress}:{Output} finished, but internal errors were returned, please check to see if file transfered.");
+            wdpErr.Commands.Add(new UICommand("Close"));
+            await wdpErr.ShowAsync();
+        }
+        public static async void WDPUploadFail(Exception ex)
+        {
+            var wdpErr = new MessageDialog($"Failed to Upload\n\nERROR: {ex.Message}\n\n{ex.StackTrace}");
+            wdpErr.Commands.Add(new UICommand("Close"));
+            await wdpErr.ShowAsync();
+        }
     }
 }

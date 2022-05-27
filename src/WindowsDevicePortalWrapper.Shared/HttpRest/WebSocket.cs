@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Microsoft.Tools.WindowsDevicePortal
@@ -145,6 +146,9 @@ namespace Microsoft.Tools.WindowsDevicePortal
         {
             if (stream != null && stream.Length != 0)
             {
+
+                
+
                 if (this.sendStreams)
                 {
                     this.WebSocketStreamReceived?.Invoke(
@@ -159,11 +163,12 @@ namespace Microsoft.Tools.WindowsDevicePortal
                     };
 
                     T message = DevicePortal.ReadJsonStream<T>(stream, settings);
-
+                    
                     this.WebSocketMessageReceived?.Invoke(
                         this,
                         new WebSocketMessageReceivedEventArgs<T>(message));
                 }
+               
             }
         }
     }

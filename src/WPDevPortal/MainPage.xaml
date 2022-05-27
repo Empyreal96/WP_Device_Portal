@@ -6,330 +6,652 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:qc="using:Ailon.QuickCharts"
+    xmlns:controls="using:Microsoft.Toolkit.Uwp.UI.Controls"
+    xmlns:tview="using:TreeViewControl"
     RequestedTheme="Dark"
     Loaded="Page_Loaded"
     mc:Ignorable="d" Background="#FF1E1E1E">
-    <Pivot Title="WP Device Portal" x:Name="MainPivot">
-        <PivotItem Header="Home" x:Name="HomePivot" ScrollViewer.IsHorizontalScrollChainingEnabled="False">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <RelativePanel Grid.Row="0">
-                    <TextBox x:Name="address" Grid.Row="0" Margin="5,5,5,5" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" TextWrapping="NoWrap" Text="" VerticalAlignment="Top" Height="32" TextChanged="Address_TextChanged"/>
+    <Grid>
 
-                    <Button x:Name="connectToDevice" RelativePanel.RightOf="rebootDevice" RelativePanel.LeftOf="shutdownDevice"  RelativePanel.Below="address" Content="Connect" Grid.Row="0" HorizontalAlignment="Stretch" Margin="5,5,5,5" VerticalAlignment="Top" Width="auto" Click="ConnectToDevice_Click" Height="32" IsEnabled="False"/>
-                    <Button x:Name="rebootDevice"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.Below="address"  Content="Reboot" Grid.Row="0" HorizontalAlignment="Stretch" Margin="5,5,5,5" VerticalAlignment="Top" Width="90" Click="RebootDevice_Click" IsEnabled="False" Height="32"/>
-                    <Button x:Name="shutdownDevice" Content="Shutdown" Grid.Row="0" HorizontalAlignment="stretch" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="address" Margin="5,5,5,5" VerticalAlignment="Top" Width="90" Click="ShutdownDevice_Click" IsEnabled="False" Height="32"/>
+        <Pivot Title="WP Device Portal" x:Name="MainPivot" SelectionChanged="MainPivot_SelectionChanged" Background="#FF333337">
+            <PivotItem Header="Home" x:Name="HomePivot" ScrollViewer.IsHorizontalScrollChainingEnabled="False">
+                <Grid HorizontalAlignment="Stretch">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <ProgressBar x:Name="ProgBar" Visibility="Collapsed" VerticalAlignment="Top" HorizontalAlignment="Stretch" Margin="0,-5,0,3" />
+                    <Border  Margin="-12,0,-12,0">
+                        <RelativePanel Grid.Row="0" HorizontalAlignment="Stretch" Margin="12,0,12,0"  >
+                            <TextBox x:Name="HomeHeader"
+                           HorizontalAlignment="Stretch"
+                                 RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True"
+                     VerticalAlignment="Top"
+                           PlaceholderText="Connect to a Device"
+                           TextAlignment="Center"
+                              Foreground="White" BorderBrush="{x:Null}" Background="#FF252526" Margin="-14,0,-15,0" IsDoubleTapEnabled="False" IsReadOnly="True" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False"/>
 
-                    <Button x:Name="loadCert" Content="Install WDP Cert" Grid.Row="0" HorizontalAlignment="Stretch" RelativePanel.Below="connectToDevice" RelativePanel.RightOf="getIPConfig" RelativePanel.LeftOf="getWiFiInfo" Margin="5,5,5,5" VerticalAlignment="Top" Width="auto" Click="LoadCertificate_Click" Height="32"/>
-                    <CheckBox x:Name="allowUntrustedCheckbox"  Content="Unsecure Connection (Not Recommended)" Grid.Row="0" RelativePanel.Below="loadCert" HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="5,5,5,5"></CheckBox>
 
 
-                    <Button x:Name="getIPConfig" Content="IP Config" Grid.Row="0" HorizontalAlignment="Stretch" RelativePanel.Below="connectToDevice" RelativePanel.AlignLeftWithPanel="True"  Margin="5,5,5,5" VerticalAlignment="Top" Width="90" Click="GetIPConfig_Click" IsEnabled="False"/>
-                    <Button x:Name="getWiFiInfo" Content="WiFi Info" Grid.Row="0" HorizontalAlignment="Stretch" RelativePanel.Below="connectToDevice" RelativePanel.AlignRightWithPanel="True"  Margin="5,5,5,5" VerticalAlignment="Top" Width="90" Click="GetWifiInfo_Click" IsEnabled="False"/>
+                            <TextBox x:Name="address" Grid.Row="0" Margin="5,5,5,5" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="HomeHeader" TextWrapping="NoWrap" Text="" VerticalAlignment="Top" Height="32" TextChanged="Address_TextChanged"/>
+                            <TextBox x:Name="ConnectionUser" Margin="5,5,5,5" PlaceholderText="Username  (optional)" RelativePanel.Below="address" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True"/>
+                            <PasswordBox x:Name="ConnectionPassword" PlaceholderText="Password (optional)" Margin="5,5,5,5" RelativePanel.Below="ConnectionUser" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True"/>
+                            <Button x:Name="connectToDevice" RelativePanel.RightOf="rebootDevice" RelativePanel.LeftOf="shutdownDevice"  RelativePanel.Below="ConnectionPassword" Content="Connect" Grid.Row="0" HorizontalAlignment="Stretch" Margin="5,5,5,5" VerticalAlignment="Top" Width="auto" Click="ConnectToDevice_Click" Height="32" IsEnabled="False"/>
+                            <Button x:Name="rebootDevice"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.Below="ConnectionPassword"  Content="Reboot" Grid.Row="0" HorizontalAlignment="Stretch" Margin="5,5,5,5" VerticalAlignment="Top" Width="90" Click="RebootDevice_Click" IsEnabled="False" Height="32"/>
+                            <Button x:Name="shutdownDevice" Content="Shutdown" Grid.Row="0" HorizontalAlignment="stretch" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="ConnectionPassword" Margin="5,5,5,5" VerticalAlignment="Top" Width="90" Click="ShutdownDevice_Click" IsEnabled="False" Height="32"/>
 
+                            <CheckBox x:Name="allowUntrustedCheckbox"  Content="Unsecure Connection (Not Recommended)" Grid.Row="0" RelativePanel.Below="connectToDevice" HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="5,5,5,5"></CheckBox>
 
-                    <CheckBox x:Name="clearOutput" Content="Clear output" RelativePanel.Below="allowUntrustedCheckbox" HorizontalAlignment="Stretch" Margin="5,5,5,5" VerticalAlignment="Top" IsChecked="True" Grid.Row="1" Height="32"/>
-                    <ProgressBar x:Name="ProgBar" Visibility="Collapsed" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True"  RelativePanel.Below="clearOutput"/>
-                </RelativePanel>
-                <ScrollViewer Margin="10,45,10,10" Grid.Row="1" VerticalScrollMode="Auto">
+                        </RelativePanel>
+                    </Border>
+                    <ScrollViewer HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Grid.Row="1" VerticalScrollMode="Auto">
 
-                    <TextBox x:Name="commandOutput" ScrollViewer.VerticalScrollMode="Enabled" TextWrapping="Wrap" Text="" BorderThickness="0" Background="#FF1E1E1E"/>
+                        <TextBlock x:Name="commandOutput" ScrollViewer.VerticalScrollMode="Enabled" TextWrapping="Wrap" Text=""  IsHitTestVisible="False" VerticalAlignment="Stretch" />
 
-                </ScrollViewer>
+                    </ScrollViewer>
 
-            </Grid>
-        </PivotItem>
-        <PivotItem Header="Applications" x:Name="ApplicationPivot">
-            
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                
-                <RelativePanel Grid.Row="1">
-                    <TextBlock x:Name="applicationLoadText"
+                </Grid>
+            </PivotItem>
+            <PivotItem Header="Applications" x:Name="ApplicationPivot">
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <RelativePanel Grid.Row="1">
+                        <TextBox x:Name="applicationLoadText"
                                Text="Choose an application to install"
-                               Margin="5,5,5,5"
-                               RelativePanel.AlignLeftWithPanel="True"/>
+                                Foreground="White" BorderBrush="{x:Null}" IsReadOnly="True" Background="#FF252526" Margin="-14,10,-15,0" IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False"
+                               RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True"/>
 
-                </RelativePanel>
-                <RelativePanel Grid.Row="0">
-                    <ComboBox x:Name="appsComboBox"
+                    </RelativePanel>
+                    <RelativePanel Grid.Row="0" x:Name="LocalAppsPanel">
+                        <ComboBox x:Name="appsComboBox"
                               SelectionChanged="appsComboBox_SelectionChanged"
                               Margin="5,5,5,5"
                               PlaceholderText="Installed Packages"
                               RelativePanel.AlignLeftWithPanel="True"
                               RelativePanel.LeftOf="uninstallApp"
                               HorizontalAlignment="Stretch"/>
-                    <Button x:Name="launchApp"
+                        <Button x:Name="launchApp"
                             Content="Launch"
                             Click="launchApp_Click"
+                            IsEnabled="False"
                             Margin="5,5,5,5"
                             RelativePanel.AlignRightWithPanel="True"/>
-                    <Button x:Name="uninstallApp"
+                        <Button x:Name="uninstallApp"
                             Content="Uninstall"
+                             IsEnabled="False"
                             Click="uninstallApp_Click"
                             Margin="5,5,5,5"
                             RelativePanel.LeftOf="launchApp"/>
-                </RelativePanel>
-                <RelativePanel Grid.Row="2" Margin="5,5,5,5">
-                    <Button x:Name="applicationLoadButton"
+                    </RelativePanel>
+                    <RelativePanel Grid.Row="2" Margin="5,5,5,5">
+                        <Button x:Name="applicationLoadButton"
                             Content="Load File"
                             Click="applicationLoadButton_Click"
                             Margin="5,5,5,5"/>
-                    <Button x:Name="loadDependencies"
+                        <Button x:Name="loadDependencies"
                             Content="Load Dependencies"
                             Click="loadDependencies_Click"
                             Margin="5,5,5,5"
                             RelativePanel.RightOf="applicationLoadButton"/>
-                    <Button x:Name="installPkg"
+                        <Button x:Name="installPkg"
                             Content="Install"
                             Click="installPkg_Click"
+                             IsEnabled="False"
                             Margin="5,5,5,5"
                             RelativePanel.RightOf="loadDependencies"
                             RelativePanel.AlignRightWithPanel="True"
                             HorizontalAlignment="Stretch"/>
-                </RelativePanel>
-                
-                <RelativePanel Grid.Row="3">
-                    <ProgressBar x:Name="AppProgbar" Visibility="Collapsed" 
+                    </RelativePanel>
+                    <ScrollViewer  Grid.Row="3">
+                        <RelativePanel Grid.Row="3">
+                            <ProgressBar x:Name="AppProgbar" Visibility="Collapsed" 
                                  RelativePanel.AlignTopWithPanel="True" 
                                  RelativePanel.AlignLeftWithPanel="True" 
                                  RelativePanel.AlignRightWithPanel="True"/>
-                    <ScrollViewer  RelativePanel.AlignLeftWithPanel="True" RelativePanel.Below="AppProgbar" RelativePanel.AlignRightWithPanel="True">
-                    <TextBlock Grid.Row="3"
-                           RelativePanel.Below="AppLogoImg"
-                           RelativePanel.AlignLeftWithPanel="True"
+
+                            <Image x:Name="AppxImageIcon" Width="80" Height="80" Stretch="UniformToFill" RelativePanel.AlignLeftWithPanel="True"  Margin="5,5,5,5"/>
+                            <TextBlock Grid.Row="3"
+                          
+                           RelativePanel.RightOf="AppxImageIcon"
                            RelativePanel.AlignRightWithPanel="True"
                            x:Name="applicationList"
+                                   MaxHeight="80"
+                                   Height="80"
                                ScrollViewer.VerticalScrollBarVisibility="Hidden"
                            ScrollViewer.VerticalScrollMode="Enabled"
                            TextWrapping="Wrap"
-                           Margin="5,5,5,5"
+                           Margin="10,5,5,5"
                            />
+                            <TextBlock x:Name="AppxDetails" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" TextWrapping="Wrap" RelativePanel.Below="AppxImageIcon" Margin="5,5,5,5"/>
+                        </RelativePanel>
+                    </ScrollViewer>
+                </Grid>
+            </PivotItem>
+            <PivotItem Header="Files" x:Name="FilesPivot">
+
+                <Grid x:Name="fileManagementGrid" HorizontalAlignment="Stretch">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="auto"></RowDefinition>
+                        <RowDefinition Height="*"></RowDefinition>
+                    </Grid.RowDefinitions>
+                    <RelativePanel x:Name="GridFilesTop" Grid.Row="0">
+                        <ComboBox x:Name="KnownFoldersCombo"
+                              
+                              SelectionChanged="KnownFoldersCombo_SelectionChanged"
+                              PlaceholderText="Select folder"
+                        Margin="5,5,5,5"
+                              Width="auto"
+                              HorizontalAlignment="Stretch"
+                              RelativePanel.AlignLeftWithPanel="True"
+                              RelativePanel.AlignRightWithPanel="True"
+                              />
+                        <ComboBox x:Name="AppNamesCombo"
+                              
+                              SelectionChanged="AppNamesCombo_SelectionChanged"
+                              PlaceholderText="Select Package"
+                        Margin="5,5,5,5"
+                              Width="auto"
+                              HorizontalAlignment="Stretch"
+                              RelativePanel.Below="KnownFoldersCombo"
+                              RelativePanel.AlignLeftWithPanel="True"
+                              RelativePanel.AlignRightWithPanel="True"
+                              />
+
+                    </RelativePanel>
+                    <RelativePanel x:Name="FileRPanel" Grid.Row="1">
+                        <Button x:Name="UploadFilebtn"
+                            Click="UploadFilebtn_Click"
+                            Content="Upload File"
+                            Margin="5,5,5,5"
+                            IsEnabled="False"
+                            RelativePanel.AlignLeftWithPanel="True"/>
+
+                        <Button x:Name="UpFolderFilebtn"
+                            Click="UpFolderFilebtn_Click"
+                            Content="Home"
+                            Margin="5,5,5,5"
+                            IsEnabled="False"
+                            RelativePanel.AlignRightWithPanel="True"/>
+                        <TextBlock x:Name="FilesInfo" RelativePanel.RightOf="UploadFilebtn" Margin="5,9,5,5" Text="Click item to download" HorizontalAlignment="Stretch"  Height="32" RelativePanel.LeftOf="UpFolderFilebtn"/>
+                        <TextBox x:Name="FilesHeader"
+                             PlaceholderText="Choose a folder to view it's contents"
+                               RelativePanel.Below="UploadFilebtn"
+                               RelativePanel.AlignLeftWithPanel="True"
+                               RelativePanel.AlignRightWithPanel="True"
+                                Foreground="White" BorderBrush="{x:Null}" IsReadOnly="True" Background="#FF252526" Margin="-14,10,-15,0" IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False"/>
+
+                        <ListView x:Name="FileListView"
+                              RelativePanel.Below="FilesHeader"
+                              RelativePanel.AlignLeftWithPanel="True"
+                              RelativePanel.AlignRightWithPanel="True"
+                              IsItemClickEnabled="True"
+                              HorizontalAlignment="Stretch"
+                              ItemClick="FileListView_ItemClick">
+                            <ListViewHeaderItem Content="Browse" />
+                            <ListView.ItemTemplate>
+
+                                <DataTemplate>
+
+                                    <RelativePanel>
+                                        <Image x:Name="IconImage" Source="{Binding ListViewFileIcon}" Stretch="UniformToFill" Width="38" Height="38" Margin="0,5,5,5" RelativePanel.AlignLeftWithPanel="True"/>
+                                        <TextBlock x:Name="FileName" HorizontalAlignment="Stretch"
+                                               Text="{Binding ListViewFileName}"
+                                               Margin="0,5,0,0"
+                                               TextWrapping="Wrap"
+                                               RelativePanel.RightOf="IconImage"/>
+                                        <TextBlock 
+                                        Text="{Binding ListViewFileSizeType}"
+                                        RelativePanel.Below="FileName"
+                                        RelativePanel.RightOf="IconImage"
+                                        Margin="0,0,0,5"
+                                        />
+                                    </RelativePanel>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </RelativePanel>
+
+                    <Border x:Name="ProgBorder" Grid.Row="1" Visibility="Collapsed" HorizontalAlignment="Stretch" VerticalAlignment="Center" Background="#FF252526" MinHeight="140" BorderThickness="1,1,1,1" BorderBrush="{ThemeResource SystemAccentColor}" Margin="0,0,0,40">
+                        <TextBlock x:Name="ProgressText" Grid.Row="1" MinWidth="140" Height="40" VerticalAlignment="Center" TextAlignment="Center" HorizontalAlignment="Stretch" Text="Processing.." Margin="0,110,0,0"/>
+                    </Border>
+                    <ProgressRing x:Name="ProgRingFiles" Grid.Row="1" Width="70" Height="70" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,100" Foreground="{ThemeResource SystemAccentColor}"/>
+                </Grid>
+            </PivotItem>
+            <PivotItem Header="Processes" Loaded="ProcessesPivot_Loaded" Unloaded="ProcessesPivot_Unloaded" x:Name="ProcessesPivot" ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.IsHorizontalScrollChainingEnabled="False">
+                <Grid x:Name="processesAppsContainer">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <ScrollViewer x:Name="processesAppsHeaderContainerScroll" Margin="0,12" HorizontalContentAlignment="Stretch"  VerticalScrollBarVisibility="Hidden" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Hidden" IsHorizontalRailEnabled="True" IsHorizontalScrollChainingEnabled="True">
+                        <Grid Margin="0,0">
+                            <Grid.Resources>
+                                <Style TargetType="Button">
+                                    <Setter Property="FontSize" Value="11"/>
+                                    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Height" Value="24"/>
+                                    <Setter Property="Padding" Value="10,0,0,0"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                </Style>
+                            </Grid.Resources>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="75"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="110"/>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="100"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="ForestGreen" Opacity="0.7" Background="Transparent">
+                                <Button Content="Name" IsHitTestVisible="False"  Tag="Name" Background="Transparent" Width="200" Margin="5,0,5,0" FontWeight="Bold"/>
+                            </Border>
+                            <Border Grid.Column="1"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Green" Opacity="0.7" Background="Transparent">
+                                <Button Background="Transparent" IsHitTestVisible="False"  Content="PID" FontWeight="Bold" Width="75" Margin="5,0,5,0" Tag="PID"/>
+                            </Border>
+                            <Border Grid.Column="2"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Gray" Opacity="0.7" Background="Transparent">
+                                <Button Background="Transparent" IsHitTestVisible="False"  Content="Full Name"  FontWeight="Bold" Width="100" Margin="5,0,5,0" Tag="Usage"/>
+                            </Border>
+                            <Border Grid.Column="3"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Orange" Opacity="0.7" Background="Transparent">
+                                <Button Background="Transparent" IsHitTestVisible="False"  Content="Working Set" FontWeight="Bold" Width="100" Margin="5,0,5,0" Tag="Memory"/>
+                            </Border>
+                            <Border Grid.Column="4"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="BlueViolet" Opacity="0.7" Background="Transparent">
+                                <Button Background="Transparent"  IsHitTestVisible="False" Content="PAGE FILE" FontWeight="Bold" Width="100" Margin="5,0,5,0" Tag="PageFile"/>
+                            </Border>
+                            <Border Grid.Column="5"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Tomato" Opacity="0.7" Background="Transparent">
+                                <Button Background="Transparent" IsHitTestVisible="False"  Content="Total Commit" FontWeight="Bold" Width="110" Margin="5,0,5,0" Tag="Disk"/>
+                            </Border>
+                            <Border Grid.Column="6"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Green" Opacity="0.7" Background="Transparent">
+                                <Button Background="Transparent" IsHitTestVisible="False"  Content="USER" FontWeight="Bold" Width="200" Margin="5,0,5,0" Tag="User"/>
+                            </Border>
+                            <Border Grid.Column="7"  BorderThickness="1" Margin="2,0,15,0" BorderBrush="Tomato" Opacity="0.7" Background="Transparent">
+                                <Button Background="Transparent" IsHitTestVisible="False"  Content="Is XAP" FontWeight="Bold" Width="100"  Tag="AppType" Margin="5,0,5,0"/>
+                            </Border>
+                        </Grid>
+                    </ScrollViewer>
+                    <ScrollViewer  x:Name="processesAppsContainerScroll" Margin="0,-12" Grid.Row="1" HorizontalContentAlignment="Stretch" ScrollViewer.IsHorizontalScrollChainingEnabled="True" VerticalScrollBarVisibility="Visible" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Visible" IsHorizontalRailEnabled="True">
+                        <ListView x:Name="processesListView" Margin="0,0" SelectionMode="Multiple" IsMultiSelectCheckBoxEnabled="True">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="IsHitTestVisible" Value="False"/>
+                                    <Setter Property="Margin" Value="-32,5,0,5"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid BorderBrush="{StaticResource SystemControlBackgroundBaseLowBrush}" BorderThickness="0,0,0,1">
+                                        <Grid.Resources>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontSize" Value="12"/>
+                                                <Setter Property="HorizontalAlignment" Value="Left"/>
+                                                <Setter Property="Margin" Value="2,0,2,0"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                            </Style>
+                                        </Grid.Resources>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="200"/>
+                                            <ColumnDefinition Width="75"/>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="200"/>
+                                            <ColumnDefinition Width="100"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0" Text="{Binding Name}"  />
+
+                                        <TextBlock Grid.Column="1" Text="{Binding PID}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Usage}" />
+                                        <TextBlock Grid.Column="3" Text="{Binding Memory}" />
+                                        <TextBlock Grid.Column="4" Text="{Binding PageFile}" />
+                                        <TextBlock Grid.Column="5" Text="{Binding Disk}" />
+                                        <TextBlock Grid.Column="6" Text="{Binding UserName}" MinWidth="150" />
+                                        <TextBlock Grid.Column="7" Text="{Binding AppType}"  />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </ScrollViewer>
+                </Grid>
+            </PivotItem>
+            <PivotItem Header="Performance" x:Name="PerfPivot" >
+                <Grid x:Name="PerfGrid">
+                    <ScrollViewer Margin="-12,0,-12,0">
+                        <RelativePanel Margin="12,0,12,0">
+
+                            <TextBox x:Name="CPUHeader" Text="Processor:"  RelativePanel.AlignTopWithPanel="True" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Background="#FF252526" Margin="-14,5,-15,5" IsDoubleTapEnabled="False" IsReadOnly="True" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False" BorderBrush="{x:Null}"/>
+                            <qc:SerialChart x:Name="CPUGraph" IsHitTestVisible="False"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="CPUHeader" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="CPULoad" PlotAreaBackground="{x:Null}" AxisForeground="White"  GridStroke="{x:Null}">
+                                <qc:SerialChart.Graphs>
+                                    <qc:LineGraph Title="CPU Load" ValueMemberPath="CPULoad" Brush="{ThemeResource SystemAccentColor}"/>
+                                </qc:SerialChart.Graphs>
+                            </qc:SerialChart>
+                            <TextBox x:Name="GPUheader" Text="GPU:" RelativePanel.Below="CPUGraph"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="true" Background="#FF252526" Margin="-14,5,-15,5" IsDoubleTapEnabled="False" IsReadOnly="True" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False" BorderBrush="{x:Null}"/>
+                            <TextBlock x:Name="GPUUsageText" RelativePanel.AlignLeftWithPanel="True" Visibility="Collapsed"  RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="GPUheader" Margin="5,8,5,5"/>
+                            <qc:SerialChart x:Name="GPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" IsHitTestVisible="False" RelativePanel.Below="GPUUsageText" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="GPUUsedTotal" PlotAreaBackground="{x:Null}" AxisForeground="White" GridStroke="{x:Null}">
+                                <qc:SerialChart.Graphs >
+                                    <qc:LineGraph Title="X: GPU Used (MB) | Y: GPU Load (%)" ValueMemberPath="GPULoad" Brush="{ThemeResource SystemAccentColor}" />
+
+
+                                </qc:SerialChart.Graphs>
+                            </qc:SerialChart>
+
+
+                            <TextBox x:Name="IOHeader" Text="IO:"  RelativePanel.Below="GPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Background="#FF252526" Margin="-14,5,-15,5" IsDoubleTapEnabled="False" IsReadOnly="True" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False" BorderBrush="{x:Null}"/>
+                            <qc:SerialChart x:Name="IOData" IsHitTestVisible="False"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="IOHeader" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="IORead" PlotAreaBackground="{x:Null}" AxisForeground="White"  GridStroke="{x:Null}">
+                                <qc:SerialChart.Graphs >
+                                    <qc:LineGraph Title="IO Read (MB)" ValueMemberPath="IORead" Brush="{ThemeResource SystemAccentColor}"/>
+                                    <qc:LineGraph Title="IO Write (MB)" ValueMemberPath="IOWrite"/>
+                                    <qc:LineGraph Title="IO Other (MB)" ValueMemberPath="IOOther"/>
+                                </qc:SerialChart.Graphs>
+                            </qc:SerialChart>
+                            <TextBox x:Name="Netheader" Text="Network:"  RelativePanel.Below="IOData"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True"  Background="#FF252526" Margin="-14,5,-15,5" IsDoubleTapEnabled="False" IsReadOnly="True" IsHoldingEnabled="False"   IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False"/>
+                            <qc:SerialChart x:Name="NetData" IsHitTestVisible="False"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="Netheader" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="NetRead" PlotAreaBackground="{x:Null}" AxisForeground="White"  GridStroke="{x:Null}">
+                                <qc:SerialChart.Graphs >
+                                    <qc:LineGraph Title="Net Read (KB)" ValueMemberPath="NetRead" Brush="{ThemeResource SystemAccentColor}"/>
+                                    <qc:LineGraph Title="Net Write (KB)" ValueMemberPath="NetWrite"/>
+
+                                </qc:SerialChart.Graphs>
+                            </qc:SerialChart>
+
+
+                        </RelativePanel>
+                    </ScrollViewer>
+                </Grid>
+
+            </PivotItem>
+            <PivotItem Header="Devices" x:Name="DevicePivot">
+                <Grid x:Name="Devgrid">
+                    <ScrollViewer>
+                        <RelativePanel Margin="-12,0,-12,0" >
+                            
+                            <ListView x:Name="DevicesListView" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" IsItemClickEnabled="True" ItemClick="DevicesListView_ItemClick" HorizontalAlignment="Stretch" IsHitTestVisible="true">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"></Setter>
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+
+                                <ListView.ItemTemplate>
+                                    <DataTemplate >
+                                        <ItemsControl>
+                                            <RelativePanel>
+
+                                                <controls:Expander x:Name="DevicesExpander"  Header="{Binding Description}" HorizontalContentAlignment="Stretch"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" ExpandDirection="Down" Background="{x:Null}" FocusVisualSecondaryBrush="{x:Null}" FocusVisualPrimaryBrush="{x:Null}" AllowFocusOnInteraction="False" >
+
+                                                    <Border Background="{x:Null}" HorizontalAlignment="Left" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True">
+                                                        <TextBlock x:Name="ExpanderItem1" Margin="5,5,5,5" TextWrapping="Wrap" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Text="{Binding FullDetails}" HorizontalAlignment="Left"/>
+                                                    </Border>
+
+                                                </controls:Expander>
+
+
+                                            </RelativePanel>
+                                        </ItemsControl>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+
+
+
+                        </RelativePanel>
+
+                    </ScrollViewer>
+                </Grid>
+            </PivotItem>
+
+            <PivotItem x:Name="WifiPivotItem" Header="Wifi">
+                <Grid>
+                    <RelativePanel>
+                        <ComboBox x:Name="WifiAdaptersCombo" SelectionChanged="WifiAdaptersCombo_SelectionChanged" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.AlignTopWithPanel="True" HorizontalAlignment="Stretch" PlaceholderText="Wifi Adapters"></ComboBox>
+                        <TextBlock x:Name="AdapterInfoText" Text="" TextWrapping="Wrap" RelativePanel.AlignLeftWithPanel="True" HorizontalAlignment="Stretch" RelativePanel.Below="WifiAdaptersCombo" RelativePanel.AlignRightWith="RescanNetworks" Margin="5,12,85,5"></TextBlock>
+                        <Button x:Name="RescanNetworks" Content="Refresh" Click="{x:Bind RefreshNetworkList}" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="WifiAdaptersCombo" Margin="5,5,5,5"></Button>
+
+                        <ListView x:Name="CurrentlyConnectedInfo" IsItemClickEnabled="True" ItemClick="{x:Bind ViewCurrentConnection}" RelativePanel.AlignLeftWithPanel="True" IsHitTestVisible="true" RelativePanel.AlignRightWithPanel="True"  RelativePanel.Below="RescanNetworks"  Margin="-10,5,-10,5" BorderBrush="#FF333337">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"></Setter>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <RelativePanel >
+                                        <Image x:Name="WifiListViewImageC" Width="25" Height="25"  MaxWidth="45" MaxHeight="45" Source="{Binding SignalImage}" RelativePanel.AlignLeftWithPanel="True" Margin="0,-5,20,0" RelativePanel.AlignVerticalCenterWithPanel="True"/>
+
+                                        <TextBlock x:Name="WifiListViewName" Text="{Binding SSID, Mode=TwoWay}" RelativePanel.RightOf="WifiListViewImageC" RelativePanel.AlignRightWithPanel="True" HorizontalAlignment="Stretch" IsHitTestVisible="False" FontSize="12" Margin="0,5,0,0" ></TextBlock>
+                                        <TextBlock x:Name="WifiListViewInfo" Text="{Binding CombinedInfo}"  RelativePanel.Below="WifiListViewName" RelativePanel.RightOf="WifiListViewImageC" TextWrapping="Wrap" MinHeight="40" HorizontalAlignment="Stretch" IsHitTestVisible="False" RelativePanel.AlignRightWithPanel="True" FontSize="11" Margin="0,0,0,5" ></TextBlock>
+                                        <!-- Button x:Name="DisconnectNetworkBtn" Content="Disconnect" Click="DisconnectNetworkBtn_Click"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="WifiListViewInfo" Foreground="White"></Button -->
+                                    </RelativePanel>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+                        <TextBox x:Name="WifiTextBox" Text="Available networks" RelativePanel.AlignLeftWithPanel="True" RelativePanel.Below="CurrentlyConnectedInfo" IsReadOnly="True"  RelativePanel.AlignRightWithPanel="True" Foreground="White" BorderBrush="{x:Null}" Background="#FF252526" Margin="-14,10,-15,0" IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False"/>
+                        <ProgressBar x:Name="NetworkProgress" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="WifiTextBox" Margin="-12,0,-12,0" MinHeight="5" Background="{x:Null}"/>
+
+
+
+                        <ListView x:Name="WifiNetworksListView" ItemClick="{x:Bind WifiNetworksListView_ItemClick}" IsItemClickEnabled="True" RelativePanel.AlignLeftWithPanel="True"  RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="NetworkProgress" RelativePanel.AlignBottomWithPanel="True" Margin="5,5,5,5">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"></Setter>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <RelativePanel>
+                                        <Image x:Name="WifiListViewImage" Width="25" Height="25"  MaxWidth="45" MaxHeight="45" Source="{Binding SignalImage}" RelativePanel.AlignLeftWithPanel="True" Margin="0,-5,20,0" RelativePanel.AlignVerticalCenterWithPanel="True"/>
+                                        <TextBlock x:Name="WifiListViewName" Text="{Binding SSID, Mode=TwoWay}" RelativePanel.RightOf="WifiListViewImage" HorizontalAlignment="Stretch" IsHitTestVisible="False" FontSize="12" ></TextBlock>
+                                        <TextBlock x:Name="WifiListViewInfo" Text="{Binding CombinedInfo}"  RelativePanel.Below="WifiListViewName" RelativePanel.RightOf="WifiListViewImage" TextWrapping="Wrap" MinHeight="40" HorizontalAlignment="Stretch" IsHitTestVisible="False" FontSize="11" Margin="0,1,0,5" Foreground="#FFA6A3A3" ></TextBlock>
+                                    </RelativePanel>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+
+
+                    </RelativePanel>
+                    <RelativePanel x:Name="ConnectionInfoWindow" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"  Margin="20,0,20,0" BorderBrush="Black" BorderThickness="1,1,1,1" Background="#FF1E1E1E">
+                        <TextBlock x:Name="CurrentConnectionLabel" Text="" RelativePanel.AlignLeftWithPanel="True" RelativePanel.LeftOf="ConnectionWindowClose" Margin="5,5,10,5" FontSize="12"></TextBlock>
+                        <Button x:Name="ConnectionWindowClose" RelativePanel.AlignRightWithPanel="True" Click="ConnectionWindowClose_Click">
+                            <SymbolIcon Symbol="Cancel"/>
+                        </Button>
+                        <TextBlock x:Name="ConnectionDetails" RelativePanel.Below="CurrentConnectionLabel" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.AlignBottomWithPanel="True" Margin="5,5,5,5"></TextBlock>
+                    </RelativePanel>
+                </Grid>
+
+            </PivotItem>
+
+
+            <PivotItem x:Name="CrashDumpsPage" Header="Event Tracing">
+
+
+                <RelativePanel>
+                    <ComboBox 
+                             x:Name="CrashAppList"
+                        SelectionChanged="CrashAppList_SelectionChanged"
+                             RelativePanel.AlignLeftWithPanel="True"
+                             RelativePanel.AlignRightWithPanel="True"
+                             RelativePanel.AlignTopWithPanel="True" 
+                             PlaceholderText="Select Provider"
+                             HorizontalAlignment="Stretch"/>
+                    <ToggleSwitch x:Name="etwToggle"
+                                  IsOn="False"
+                                  Height="32"
+                              IsEnabled="false"
+                                  Toggled="etwToggle_Toggled"
+                                  RelativePanel.AlignLeftWithPanel="True"
+                                  RelativePanel.Below="CrashAppList"
+                                  Margin="5,5,5,5"
+                                  OffContent="Tracing Off"
+                                  OnContent="Tracing On"/>
+                    <ComboBox x:Name="etwLevel"
+                              PlaceholderText="ETW Level"
+                              MinWidth="200"
+                              Height="32"
+                              SelectionChanged="etwLevel_SelectionChanged"
+                              RelativePanel.AlignRightWithPanel="True"
+                              RelativePanel.Below="CrashAppList"
+                              Margin="5,5,5,5">
+                        <ComboBoxItem x:Name="etwtype1" Content="1. Abnormal Exit or Termination"/>
+                        <ComboBoxItem x:Name="etwtype2" Content="2. Severe Errors"/>
+                        <ComboBoxItem x:Name="etwtype3" Content="3. Warnings"/>
+                        <ComboBoxItem x:Name="etwtype4" Content="4. Non-error Warnings"/>
+                        <ComboBoxItem x:Name="etwtype5" Content="5. Detailed Trace"/>
+                    </ComboBox>
+
+
+                    <Button x:Name="ViewETWLog"
+                            Click="ViewETWLog_Click"
+                            Content="View Log"
+                            IsEnabled="False"
+                            RelativePanel.Below="etwToggle"
+                            RelativePanel.AlignLeftWithPanel="True"
+                            Margin="5,5,5,5"
+                            />
+
+                    <Button x:Name="SaveETWLog"
+                            Click="SaveETWLog_Click"
+                            IsEnabled="False"
+                            Content="Save Log"
+                            RelativePanel.Below="etwToggle"
+                            RelativePanel.RightOf="ViewETWLog"
+                            Margin="5,5,5,5"/>
+                    <Button x:Name="ClearLog"
+                            IsEnabled="False"
+                            Click="ClearLog_Click"
+                            Content="Clear Log"
+                            RelativePanel.Below="etwToggle"
+                            RelativePanel.RightOf="SaveETWLog"
+                            Margin="5,5,5,5"/>
+
+                    <TextBlock x:Name="etwTimerBox"
+                               Margin="5,5,5,5"
+                               RelativePanel.RightOf="ClearLog"
+                               RelativePanel.Below="etwLevel"
+                           RelativePanel.AlignRightWithPanel="True"/>
+                    <ScrollViewer x:Name="etwscroll"
+                                  RelativePanel.Below="SaveETWLog"
+                                  RelativePanel.AlignRightWithPanel="True"
+                               RelativePanel.AlignLeftWithPanel="True"
+                                  HorizontalAlignment="Stretch"
+                                  VerticalAlignment="Stretch"
+                                  VerticalScrollMode="Enabled"
+                                  HorizontalScrollMode="Enabled">
+
+
+                        <TextBlock x:Name="ETWLogOutput"
+                               RelativePanel.Below="SaveETWLog"
+                               ScrollViewer.VerticalScrollMode="Enabled"
+                               ScrollViewer.HorizontalScrollMode="Enabled"
+                               TextWrapping="Wrap"
+                               RelativePanel.AlignBottomWithPanel="True"
+                               RelativePanel.AlignRightWithPanel="True"
+                               RelativePanel.AlignLeftWithPanel="True"
+                               Margin="5,5,5,5"
+                               />
                     </ScrollViewer>
                 </RelativePanel>
-            </Grid>
-        </PivotItem>
-        <PivotItem Header="Processes" x:Name="ProcessesPivot" ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.IsHorizontalScrollChainingEnabled="False">
-            <Grid x:Name="processesAppsContainer">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <ScrollViewer x:Name="processesAppsHeaderContainerScroll" Margin="0,12" HorizontalContentAlignment="Stretch"  VerticalScrollBarVisibility="Hidden" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Hidden" IsHorizontalRailEnabled="True" IsHorizontalScrollChainingEnabled="True">
-                    <Grid Margin="0,0">
-                        <Grid.Resources>
-                            <Style TargetType="Button">
-                                <Setter Property="FontSize" Value="11"/>
-                                <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Height" Value="24"/>
-                                <Setter Property="Padding" Value="10,0,0,0"/>
-                                <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                            </Style>
-                        </Grid.Resources>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="200"/>
-                            <ColumnDefinition Width="75"/>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="110"/>
-                            <ColumnDefinition Width="200"/>
-                            <ColumnDefinition Width="100"/>
-                        </Grid.ColumnDefinitions>
-                        <Border Grid.Column="0"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="ForestGreen" Opacity="0.7" Background="Transparent">
-                            <Button Content="Name" Tag="Name" Background="Transparent" Width="200" Margin="5,0,5,0" FontWeight="Bold"/>
-                        </Border>
-                        <Border Grid.Column="1"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Green" Opacity="0.7" Background="Transparent">
-                            <Button Background="Transparent" Content="PID" FontWeight="Bold" Width="75" Margin="5,0,5,0" Tag="PID"/>
-                        </Border>
-                        <Border Grid.Column="2"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Gray" Opacity="0.7" Background="Transparent">
-                            <Button Background="Transparent" Content="Full Name"  FontWeight="Bold" Width="100" Margin="5,0,5,0" Tag="Usage"/>
-                        </Border>
-                        <Border Grid.Column="3"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Orange" Opacity="0.7" Background="Transparent">
-                            <Button Background="Transparent" Content="Working Set" FontWeight="Bold" Width="100" Margin="5,0,5,0" Tag="Memory"/>
-                        </Border>
-                        <Border Grid.Column="4"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="BlueViolet" Opacity="0.7" Background="Transparent">
-                            <Button Background="Transparent" Content="PAGE FILE" FontWeight="Bold" Width="100" Margin="5,0,5,0" Tag="PageFile"/>
-                        </Border>
-                        <Border Grid.Column="5"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Tomato" Opacity="0.7" Background="Transparent">
-                            <Button Background="Transparent" Content="Total Commit" FontWeight="Bold" Width="110" Margin="5,0,5,0" Tag="Disk"/>
-                        </Border>
-                        <Border Grid.Column="6"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Green" Opacity="0.7" Background="Transparent">
-                            <Button Background="Transparent" Content="USER" FontWeight="Bold" Width="200" Margin="5,0,5,0" Tag="User"/>
-                        </Border>
-                        <Border Grid.Column="7"  BorderThickness="1" Margin="2,0,15,0" BorderBrush="Tomato" Opacity="0.7" Background="Transparent">
-                            <Button Background="Transparent" Content="Is XAP" FontWeight="Bold" Width="100"  Tag="AppType" Margin="5,0,5,0"/>
-                        </Border>
-                    </Grid>
-                </ScrollViewer>
-                <ScrollViewer  x:Name="processesAppsContainerScroll" Margin="0,-12" Grid.Row="1" HorizontalContentAlignment="Stretch" ScrollViewer.IsHorizontalScrollChainingEnabled="True" VerticalScrollBarVisibility="Visible" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Visible" IsHorizontalRailEnabled="True">
-                    <ListView x:Name="processesListView" Margin="0,0" SelectionMode="Multiple" IsMultiSelectCheckBoxEnabled="True">
+
+
+
+            </PivotItem>
+
+            <PivotItem x:Name="CrashDumpsPivot" Header="Crash Dumps">
+                <Grid x:Name="CrashDumpGrid">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"></RowDefinition>
+                        <RowDefinition Height="*"></RowDefinition>
+                    </Grid.RowDefinitions>
+
+                    <RelativePanel x:Name="CrashDumpPanel" Grid.Row="0">
+
+                        <ComboBox x:Name="DumpTypeCombo" PlaceholderText="Dump Type" SelectionChanged="DumpTypeCombo_SelectionChanged" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" HorizontalAlignment="Stretch"  Margin="0,10,0,0">
+                            <ComboBoxItem x:Name="DumpDisabledItem" Content="Disabled"/>
+                            <ComboBoxItem x:Name="DumpCompleteItem" Content="Complete crash dumps"/>
+                            <ComboBoxItem x:Name="DumpKernelItem" Content="Kernel-mode dumps"/>
+                            <ComboBoxItem x:Name="DumpMiniItem" Content="User-mode (Minidump)"/>
+                        </ComboBox>
+
+                        <TextBox x:Name="CrashHeader" Text="General Configuration" RelativePanel.AlignLeftWithPanel="True" RelativePanel.Below="DumpTypeCombo" IsHitTestVisible="False" IsReadOnly="True"  RelativePanel.AlignRightWithPanel="True" Foreground="White" BorderBrush="{x:Null}" Background="#FF252526" Margin="-14,5,-15,0"/>
+
+                        <TextBlock x:Name="AutoRebootLable" Text="Auto reboot after dump" RelativePanel.AlignLeftWithPanel="True" RelativePanel.Below="CrashHeader" Margin="10,13,0,0"/>
+                        <ToggleSwitch x:Name="AutoRebootTog" Toggled="AutoRebootTog_Toggled" OnContent="" OffContent="" RelativePanel.Below="CrashHeader" RelativePanel.AlignRightWithPanel="True" Margin="0,5,-72,0" HorizontalAlignment="Left"/>
+
+                        <TextBlock x:Name="OverwriteDumpLable" Text="Overwrite crash dumps" RelativePanel.AlignLeftWithPanel="True" RelativePanel.Below="AutoRebootLable" Margin="10,13,0,0"/>
+                        <ToggleSwitch x:Name="OverwriteDumpTog" Toggled="OverwriteDumpTog_Toggled" OnContent="" OffContent="" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="AutoRebootLable" RelativePanel.AlignRightWith="OverwriteDumpLable" Margin="0,5,-72,0"/>
+
+                        <TextBlock x:Name="MaxDumpTog" Text="Max dump count" RelativePanel.AlignLeftWithPanel="True" RelativePanel.Below="OverwriteDumpLable" Margin="10,13,0,0"/>
+                        <Slider x:Name="MaxDumpSlider" ValueChanged="MaxDumpSlider_ValueChanged" Minimum="1" Maximum="10" RelativePanel.Below="OverwriteDumpLable" RelativePanel.LeftOf="MaxDumpTog" MaxWidth="150" Margin="0,5,0,0" RelativePanel.AlignRightWithPanel="True" Width="120"/>
+
+                        <TextBox x:Name="CrashAppHeader" Text="Applications" RelativePanel.AlignLeftWithPanel="True" RelativePanel.Below="MaxDumpTog" IsHitTestVisible="False" IsReadOnly="True"  RelativePanel.AlignRightWithPanel="True" Foreground="White" BorderBrush="{x:Null}" Background="#FF252526" Margin="-14,10,-15,0"/>
+
+
+                        <ComboBox x:Name="CrashDumpAppCombo" SelectionChanged="CrashDumpAppCombo_SelectionChanged" PlaceholderText="Select Application" RelativePanel.Below="CrashAppHeader" HorizontalAlignment="Stretch"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.LeftOf="CrashDumpAppCheck" Margin="0,12,10,0"/>
+                        <CheckBox x:Name="CrashDumpAppCheck" Content="" Checked="CrashDumpAppCheck_Checked" Unchecked="CrashDumpAppCheck_Unchecked" RelativePanel.Below="CrashAppHeader"  RelativePanel.AlignRightWithPanel="True" Margin="0,12,-100,0"/>
+
+                        <Button x:Name="FetchCrashDumpFiles" Content="Fetch Crash Dump Files" Click="FetchCrashDumpFiles_Click" RelativePanel.Below="CrashDumpAppCombo" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" HorizontalAlignment="Stretch" Margin="0,5,0,0"/>
+                    </RelativePanel>
+
+                    <ListView x:Name="DumpsListView" Grid.Row="1" ItemClick="DumpsListView_ItemClick" IsItemClickEnabled="True" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalAlignment="Stretch" BorderThickness="1" Background="#FF262628" Margin="-12,8,-12,0" BorderBrush="Black">
                         <ListView.ItemContainerStyle>
                             <Style TargetType="ListViewItem">
-                                <Setter Property="IsHitTestVisible" Value="False"/>
-                                <Setter Property="Margin" Value="-32,5,0,5"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"></Setter>
                             </Style>
                         </ListView.ItemContainerStyle>
                         <ListView.ItemTemplate>
-                            <DataTemplate>
-                                <Grid BorderBrush="{StaticResource SystemControlBackgroundBaseLowBrush}" BorderThickness="0,0,0,1">
-                                    <Grid.Resources>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontSize" Value="12"/>
-                                            <Setter Property="HorizontalAlignment" Value="Left"/>
-                                            <Setter Property="Margin" Value="2,0,2,0"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="TextWrapping" Value="Wrap"/>
-                                        </Style>
-                                    </Grid.Resources>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="200"/>
-                                        <ColumnDefinition Width="75"/>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="110"/>
-                                        <ColumnDefinition Width="200"/>
-                                        <ColumnDefinition Width="100"/>
-                                    </Grid.ColumnDefinitions>
 
-                                    <TextBlock Grid.Column="0" Text="{Binding Name}"  />
+                            <DataTemplate x:Name="DumpsDataTemp">
+                                <RelativePanel HorizontalAlignment="Stretch" Width="auto" MinWidth="200">
+                                    <TextBlock x:Name="ListText" Text="{Binding FileName}" HorizontalAlignment="Stretch" RelativePanel.AlignLeftWithPanel="True"/>
+                                    <Button x:Name="ListBtn" Click="ListBtn_Click" RelativePanel.AlignRightWithPanel="True" HorizontalAlignment="Right">
+                                        <SymbolIcon Symbol="Delete"></SymbolIcon>
+                                    </Button>
+                                    <TextBlock x:Name="ListDateSize" Text="{Binding FileSizeAndDate}"  RelativePanel.Below="ListText" RelativePanel.AlignLeftWithPanel="True" />
+                                </RelativePanel>
 
-                                    <TextBlock Grid.Column="1" Text="{Binding PID}" />
-                                    <TextBlock Grid.Column="2" Text="{Binding Usage}" />
-                                    <TextBlock Grid.Column="3" Text="{Binding Memory}" />
-                                    <TextBlock Grid.Column="4" Text="{Binding PageFile}" />
-                                    <TextBlock Grid.Column="5" Text="{Binding Disk}" />
-                                    <TextBlock Grid.Column="6" Text="{Binding UserName}" MinWidth="150" />
-                                    <TextBlock Grid.Column="7" Text="{Binding AppType}"  />
-                                </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
-                </ScrollViewer>
-            </Grid>
-        </PivotItem>
-        <PivotItem Header="Performance" >
-            <Grid x:Name="PerfGrid">
-                <ScrollViewer>
-                    <RelativePanel>
-
-                        <TextBlock x:Name="CPUHeader" Text="Processor:" RelativePanel.AlignTopWithPanel="True" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,5,5,5"/>
-                        <Border x:Name="CPUBorder" RelativePanel.Below="CPUHeader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
-                        <qc:SerialChart x:Name="CPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="CPUBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="CPULoad" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
-                            <qc:SerialChart.Graphs>
-                                <qc:LineGraph Title="CPU Load" ValueMemberPath="CPULoad"/>
-                            </qc:SerialChart.Graphs>
-                        </qc:SerialChart>
-                        <Border x:Name="GPUHeadSeperator" RelativePanel.Below="CPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
-                        <TextBlock x:Name="GPUheader" Text="GPU:" RelativePanel.Below="GPUHeadSeperator" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,8,5,5"/>
-                        <Border x:Name="GPUGraphBorder" RelativePanel.Below="GPUheader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
-                        <qc:SerialChart x:Name="GPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="GPUGraphBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="GPULoad" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
-                            <qc:SerialChart.Graphs >
-                                <qc:LineGraph Title="GPU Load" ValueMemberPath="GPULoad" />
-
-                            </qc:SerialChart.Graphs>
-                        </qc:SerialChart>
-
-                        <qc:SerialChart x:Name="GPUMemory" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="GPUGraph" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="GPUMemShared" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
-                            <qc:SerialChart.Graphs >
-                                <qc:LineGraph Title="GPU Memory (Shared MB)" ValueMemberPath="GPUMemShared"/>
-                                <qc:LineGraph Title="GPU Memory (Dedicated MB)" ValueMemberPath="GPUMemSelf"/>
-                            </qc:SerialChart.Graphs>
-                        </qc:SerialChart>
-                        <Border x:Name="IOBorder" RelativePanel.Below="GPUMemory" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
-                        <TextBlock x:Name="IOHeader" Text="IO:" RelativePanel.Below="IOBorder" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,8,5,5"/>
-                        <Border x:Name="IOGraphBorder" RelativePanel.Below="IOHeader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
-                        <qc:SerialChart x:Name="IOData" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="IOGraphBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="IORead" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
-                            <qc:SerialChart.Graphs >
-                                <qc:LineGraph Title="IO Read (MB)" ValueMemberPath="IORead"/>
-                                <qc:LineGraph Title="IO Write (MB)" ValueMemberPath="IOWrite"/>
-                                <qc:LineGraph Title="IO Other (MB)" ValueMemberPath="IOOther"/>
-                            </qc:SerialChart.Graphs>
-                        </qc:SerialChart>
-                        <Border x:Name="NetBorder" RelativePanel.Below="IOData" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
-                        <TextBlock x:Name="Netheader" Text="Network:" RelativePanel.Below="NetBorder"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,8,5,5"/>
-                        <Border x:Name="NetGraphBorder" RelativePanel.Below="Netheader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
-                        <qc:SerialChart x:Name="NetData" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="NetGraphBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="NetRead" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
-                            <qc:SerialChart.Graphs >
-                                <qc:LineGraph Title="Net Read (KB)" ValueMemberPath="NetRead"/>
-                                <qc:LineGraph Title="Net Write (KB)" ValueMemberPath="NetWrite"/>
-
-                            </qc:SerialChart.Graphs>
-                        </qc:SerialChart>
-                        <Border  x:Name="PagingBorder" RelativePanel.Below="NetData" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
-                        <TextBlock x:Name="PagingHeader" Text="Paging:" RelativePanel.Below="PagingBorder"    RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,8,5,5"/>
-                        <Border  x:Name="PagingGraphBorder" RelativePanel.Below="PagingHeader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
-                        <qc:SerialChart x:Name="PagingData" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="PagingGraphBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="PagedPages" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
-                            <qc:SerialChart.Graphs >
-                                <qc:LineGraph Title="Paged Pool" ValueMemberPath="PagedPages"/>
-                                <qc:LineGraph Title="Non-Paged Pool" ValueMemberPath="NonPagedPages"/>
+                </Grid>
+            </PivotItem>
 
 
-
-                            </qc:SerialChart.Graphs>
-                        </qc:SerialChart>
-
-                    </RelativePanel>
-                </ScrollViewer>
-            </Grid>
-
-        </PivotItem>
-        <PivotItem Header="Devices">
-            <Grid x:Name="Devgrid">
-                <ScrollViewer Margin="5,5,5,5">
-                    <RelativePanel>
-                        <ComboBox x:Name="DriverComboBox" 
-                                  HorizontalAlignment="Stretch" 
-                                  RelativePanel.AlignTopWithPanel="True" 
-                                  RelativePanel.AlignLeftWithPanel="True" 
-                                  RelativePanel.AlignRightWithPanel="True"
-                                  PlaceholderText="Select Device"
-                                  SelectionChanged="DriverComboBox_SelectionChanged">
-
-                        </ComboBox>
-                        <TextBlock x:Name="DevicesText"
-                               RelativePanel.Below="DriverComboBox"
-                               RelativePanel.AlignLeftWithPanel="True"
-                               RelativePanel.AlignRightWithPanel="True"
-                               VerticalAlignment="Stretch"
-                               Margin="5,5,5,5"
-                               TextWrapping="Wrap"/>
-                    </RelativePanel>
-                </ScrollViewer>
-            </Grid>
-        </PivotItem>
-        <PivotItem x:Name="About" Header="About">
-            <ScrollViewer>
-            <RelativePanel>
-                <TextBlock x:Name="AboutHeader"
-                           RelativePanel.AlignLeftWithPanel="True"
-                           RelativePanel.AlignRightWithPanel="True"
-                           RelativePanel.AlignTopWithPanel="True"
+            <PivotItem x:Name="About" Header="About">
+                <Grid>
+                    <TextBox x:Name="AboutHeader"
+                           HorizontalAlignment="Stretch"
+                     VerticalAlignment="Top"
                            Text="Windows Phone Device Portal Client"
-                           Margin="5,5,5,5" TextAlignment="Center" />
-                
-                
-                <TextBlock x:Name="Acknowledgements"
-                           RelativePanel.Below="AboutHeader" 
+                           TextAlignment="Center"
+                              Foreground="White" BorderBrush="{x:Null}" Background="#FF252526" Margin="-14,0,-15,0" IsDoubleTapEnabled="False" IsReadOnly="True" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False"/>
+
+
+                    <ScrollViewer Margin="0,35,0,0">
+                        <RelativePanel>
+
+                            <TextBlock x:Name="Acknowledgements"
+                            
                            RelativePanel.AlignRightWithPanel="True"
                            RelativePanel.AlignLeftWithPanel="True"
                            Text=""
                            Margin="5,5,5,5" TextAlignment="Left" />
-                
-                
-                
-                
-                <Button x:Name="UpdateBtn" 
+
+
+
+
+                            <Button x:Name="UpdateBtn" 
                         Content="Check For Updates" 
                         Click="UpdateBtn_Click"
                         Margin="5,5,5,5"
@@ -338,14 +660,14 @@
                         RelativePanel.AlignRightWithPanel="True"
                         HorizontalAlignment="Stretch"
                         />
-                
-                <ProgressBar x:Name="ProgressBarDownload" 
+
+                            <ProgressBar x:Name="ProgressBarDownload" 
                              RelativePanel.Above="UpdateBtn"
                              Height="5" Margin="5,5,5,20"
                              RelativePanel.AlignRightWithPanel="True" 
                              RelativePanel.AlignLeftWithPanel="True"/>
-                
-                <TextBlock x:Name="UpdateDetailsBox" 
+
+                            <TextBlock x:Name="UpdateDetailsBox" 
                            TextWrapping="Wrap"
                            ScrollViewer.VerticalScrollMode="Enabled"
                            RelativePanel.Above="ProgressBarDownload" 
@@ -353,7 +675,7 @@
                            RelativePanel.AlignLeftWithPanel="True"
                            RelativePanel.AlignRightWithPanel="True"
                            Margin="5,5,5,20" HorizontalAlignment="Stretch"/>
-                <Button x:Name="DLButton" 
+                            <Button x:Name="DLButton" 
                         Content="Install"
                         Margin="5,5,5,5"
                        Click="DLButton_Click"
@@ -362,10 +684,11 @@
                         RelativePanel.AlignRightWithPanel="True"
                         HorizontalAlignment="Stretch"
                         />
-            </RelativePanel>
-            </ScrollViewer>
-        </PivotItem>
-    </Pivot>
-
-
+                        </RelativePanel>
+                    </ScrollViewer>
+                </Grid>
+            </PivotItem>
+        </Pivot>
+        <Button x:Name="CloseBtn"  Click="Close_Click" FontSize="12" Content="&#xE106;"  FontFamily="Segoe MDL2 Assets" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,2,2,0" Background="#FF333337" BorderBrush="{x:Null}" Foreground="{ThemeResource SystemAccentColorLight1}"/>
+    </Grid>
 </Page>

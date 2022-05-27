@@ -21,10 +21,23 @@ using Windows.Networking.BackgroundTransfer;
 using System.Net.NetworkInformation;
 using Octokit;
 using System.IO;
-
 using LightBuzz.Archiver;
 using Windows.Management.Deployment;
 using Windows.UI.Xaml.Media.Imaging;
+using Windows.ApplicationModel;
+using System.Diagnostics;
+using Windows.UI.Popups;
+using Windows.System.Profile;
+using System.Collections.Specialized;
+using Windows.Security.Credentials;
+using Windows.Devices.WiFi;
+using ExceptionHelper;
+using Windows.Data.Xml.Dom;
+
+using System.IO.Compression;
+using System.Xml.Linq;
+using System.Xml;
+using Windows.Security.Cryptography;
 
 namespace WPDevPortal
 {
@@ -36,6 +49,7 @@ namespace WPDevPortal
         /// <summary>
         /// The device portal to which we are connecting.
         /// </summary>
+        bool FinishedLoadingData;
         private DevicePortal portal;
         private Certificate certificate;
         private string WDPAddress { get; set; }
@@ -56,38 +70,106 @@ namespace WPDevPortal
         private DispatcherTimer _timer = new DispatcherTimer();
         private bool isConnected { get; set; }
         private SystemPerformanceInformation perfResult { get; set; }
+        private AppCrashDumpSettings dumpResult { get; set; }
+        private List<AppPackage> app { get; set; }
+        private EtwProviders ETWResult { get; set; }
+        private bool IsETWStarted { get; set; }
+        private WebSocketMessageReceivedEventArgs<EtwEvents> ETWEventList { get; set; }
+        int etwTimer = 0;
+        string etwMessage;
+        private string[] ETWLogger { get; set; }
+        private List<string> ETW_LOGGER { get; set; }
+        string selectedKnownFolder { get; set; }
+        string itemId = null;
+        bool IsCrashDumpEnabled;
+        PasswordVault PasswordStore = new PasswordVault();
+        ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
         /// <summary>
         /// The main page constructor.
         /// </summary>
         public MainPage()
         {
-            this.InitializeComponent();
-            this.EnableDeviceControls(false);
-            DLButton.Visibility = Visibility.Collapsed;
-            ProgressBarDownload.Visibility = Visibility.Collapsed;
-            Acknowledgements.Text =
-                $"This software uses Open Source libraries.\n" +
-                $"• WindowsDevicePortalWrapper and Sample by Microsoft.\n" +
-                $"• UWPQuickCharts by 'ailon'\n" +
-                $"• Octokit by Github\n" +
-                $"• ArchiverPlus Class by Lightbuzz(?)\n\n" +
-                $"Thanks to BAstifan for help with a few parts";
-            var str = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily;
-            if (str == "Windows.Desktop")
+            try
             {
-                address.Text = @"http://127.0.0.1:50080";
-                WDPAddress = address.Text;
-                WDPUser = "Administrator";
-                WDPPass = "IJustNeedSomeTextHere";
-                connectToDevice.IsEnabled = true;
+
+                this.InitializeComponent();
+                this.EnableDeviceControls(false);
+                //
+                // Hide ETW for now
+                EnablePivotPages(false);
+                // MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "CrashDumpsPage"));
+                if (AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Mobile")
+                {
+                    CloseBtn.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    CloseBtn.Visibility = Visibility.Collapsed;
+                }
+
+                
+                 IsETWStarted = false;
+                AppNamesCombo.IsEnabled = false;
+                ProgRingFiles.IsEnabled = false;
+                ProgressText.Visibility = Visibility.Collapsed;
+                AppNamesCombo.Visibility = Visibility.Collapsed;
+                DLButton.Visibility = Visibility.Collapsed;
+                ProgressBarDownload.Visibility = Visibility.Collapsed;
+                Acknowledgements.Text =
+                    $"This software uses Open Source libraries.\n" +
+                    $"• WindowsDevicePortalWrapper and Sample by Microsoft.\n" +
+                    $"• UWPQuickCharts by 'ailon'\n" +
+                    $"• Octokit by Github\n" +
+                    $"• ArchiverPlus Class by Lightbuzz(?)\n\n" +
+                    $"Thanks to BAstifan for help with a few parts";
+                var str = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily;
+                string lastSavedAddress = LoadLastAddress();
+                if (lastSavedAddress == "NoAddress")
+                {
+                    if (str == "Windows.Desktop")
+                    {
+                        address.Text = @"http://127.0.0.1:50080";
+                        WDPAddress = address.Text;
+                        WDPUser = "Administrator";
+                        ConnectionUser.Text = "Administrator";
+                        WDPPass = "IJustNeedSomeTextHere";
+                        connectToDevice.IsEnabled = true;
+                    }
+                    else if (str == "Windows.Mobile")
+                    {
+                        address.Text = @"https://127.0.0.1";
+                        WDPAddress = address.Text;
+                        WDPUser = "Administrator";
+                        ConnectionUser.Text = "Administrator";
+                        WDPPass = "IJustNeedSomeTextHere";
+                        connectToDevice.IsEnabled = true;
+                    }
+                    else
+                    {
+                        address.Text = @"https://127.0.0.1";
+                        WDPAddress = address.Text;
+                        WDPUser = "Administrator";
+                        ConnectionUser.Text = "Administrator";
+                        WDPPass = "IJustNeedSomeTextHere";
+                        connectToDevice.IsEnabled = true;
+                    }
+                }
+                else
+                {
+                    address.Text = lastSavedAddress;
+                    WDPAddress = address.Text;
+                    WDPUser = "Administrator";
+                    ConnectionUser.Text = "Administrator";
+                    WDPPass = "IJustNeedSomeTextHere";
+                    connectToDevice.IsEnabled = true;
+                }
+
+
+
             }
-            else if (str == "Windows.Mobile")
+            catch (Exception ex)
             {
-                address.Text = @"https://127.0.0.1";
-                WDPAddress = address.Text;
-                WDPUser = "Administrator";
-                WDPPass = "IJustNeedSomeTextHere";
-                connectToDevice.IsEnabled = true;
+                ExceptionHelper.Exceptions.ThrownExceptionErrorExtended(ex);
             }
 
         }
@@ -96,7 +178,7 @@ namespace WPDevPortal
 
             this.DataContext = this;
 
-            _timer.Interval = TimeSpan.FromMilliseconds(500);
+            _timer.Interval = TimeSpan.FromMilliseconds(1000);
             _timer.Tick += UpdateRealTimeData;
             _timer.Start();
 
@@ -104,6 +186,38 @@ namespace WPDevPortal
 
         }
 
+
+        private void MainPivot_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            GC.Collect();
+            PivotItem pivot = null;
+            pivot = (PivotItem)(sender as Pivot).SelectedItem;
+            if (pivot.Header.ToString() != "Processes")
+            {
+                processesListView.IsEnabled = false;
+            }
+            else
+            {
+                processesListView.IsEnabled = true;
+            }
+
+            if (pivot.Header.ToString() != "Performance")
+            {
+                _timer.Stop();
+                CPUGraph.IsEnabled = false;
+                GPUGraph.IsEnabled = false;
+                IOData.IsEnabled = false;
+                NetData.IsEnabled = false;
+            }
+            else
+            {
+                _timer.Start();
+                CPUGraph.IsEnabled = true;
+                GPUGraph.IsEnabled = true;
+                IOData.IsEnabled = true;
+                NetData.IsEnabled = true;
+            }
+        }
 
         /// <summary>
         /// TextChanged handler for the address text box.
@@ -118,18 +232,13 @@ namespace WPDevPortal
         /// <summary>
         /// If specified in the UI, clears the test output display, otherwise does nothing.
         /// </summary>
-        private void ClearOutput()
-        {
-            bool clearOutput = this.clearOutput.IsChecked.HasValue ? this.clearOutput.IsChecked.Value : false;
-            if (clearOutput)
-            {
-                this.commandOutput.Text = string.Empty;
-            }
-        }
 
 
-
-
+        bool autoreboot;
+        int maxDumpCount;
+        bool overwriteDump;
+        DumpFileSettings.DumpTypes dumpType;
+        int i;
         /// <summary>
         /// Click handler for the connectToDevice button.
         /// </summary>
@@ -141,7 +250,7 @@ namespace WPDevPortal
 
             try
             {
-
+                FinishedLoadingData = false;
                 ProgBar.Visibility = Visibility.Visible;
                 ProgBar.IsEnabled = true;
                 ProgBar.IsIndeterminate = true;
@@ -149,14 +258,30 @@ namespace WPDevPortal
                 this.EnableConnectionControls(false);
                 this.EnableDeviceControls(false);
 
-                this.ClearOutput();
+
                 await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                                () =>
                                {
                                    commandOutput.Text = "Connecting, Please wait..";
                                });
                 bool allowUntrusted = true;
+                WDPAddress = address.Text;
+                if (ConnectionUser.Text == "")
+                {
 
+                }
+                else
+                {
+                    WDPUser = ConnectionUser.Text;
+                }
+                if (ConnectionPassword.Password == "")
+                {
+
+                }
+                else
+                {
+                    WDPPass = ConnectionPassword.Password;
+                }
                 portal = new DevicePortal(
                     new DefaultDevicePortalConnection(
                         WDPAddress,
@@ -185,31 +310,49 @@ namespace WPDevPortal
 
                     if (connectArgs.Status == DeviceConnectionStatus.Connected)
                     {
-                        var token = processesAppsContainerScroll.RegisterPropertyChangedCallback(ScrollViewer.HorizontalOffsetProperty, OnScrollChangedChange);
 
+                        var token = processesAppsContainerScroll.RegisterPropertyChangedCallback(ScrollViewer.HorizontalOffsetProperty, OnScrollChangedChange);
 
 
                         sb.Append("Connected to: ");
                         sb.AppendLine(portal.Address);
                         sb.Append("OS version: ");
-                        sb.AppendLine(portal.OperatingSystemVersion);
+                        sb.AppendLine($"10.0.{portal.OperatingSystemVersion}");
                         sb.Append("Device family: ");
                         sb.AppendLine(portal.DeviceFamily.Replace(".", " "));
                         sb.Append("Platform: ");
                         sb.AppendLine(String.Format("{0} ({1})",
                             portal.PlatformName,
                             portal.Platform.ToString()));
-                        sb.Append("Manufacture: ");
-                        sb.AppendLine($"{DeviceManufacturer}");
-                        sb.Append("Model: ");
-                        sb.AppendLine($"{DeviceModel}");
 
+
+                        if (WDPAddress.Contains("127.0.0.1"))
+                        {
+                            sb.Append("Manufacture: ");
+                            sb.AppendLine($"{DeviceManufacturer}");
+                            sb.Append("Model: ");
+                            sb.AppendLine($"{DeviceModel}");
+                        }
                         Task<BatteryState> batteryStat = portal.GetBatteryStateAsync();
-
                         BatteryState batteryResult = batteryStat.Result;
                         sb.Append("Battery Level: ");
                         sb.AppendLine($"{batteryResult.Level.ToString()}%");
+                        List<string> crashDumpList = new List<string>();
+                        if (crashDumpList.Count > 0)
+                        {
+                            crashDumpList.Clear();
+                        }
+                        List<string> appNamesList = new List<string>();
+                        if (appNamesList.Count > 0)
+                        {
+                            appNamesList.Clear();
+                        }
 
+                        List<string> appNamesListFull = new List<string>();
+                        if (appNamesListFull.Count > 0)
+                        {
+                            appNamesListFull.Clear();
+                        }
 
                         await Task.Run(async () =>
                         {
@@ -218,46 +361,193 @@ namespace WPDevPortal
                             foreach (var pkg in packages.Result.Packages)
                             {
                                 // Updating te textBox required this to prevent halting the main thread
-                                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
-                                () =>
+                                appNamesListFull.Add(pkg.FullName);
+                                //appsComboBox.Items.Add(pkg.FullName);
+                                if (!pkg.FullName.Contains("8wekyb3d8bbwe"))
+                                {
+                                    if (!pkg.FullName.Contains("cw5n1h2txyewy"))
                                     {
-                                        appsComboBox.Items.Add(pkg.FullName);
-                                        
+                                        appNamesList.Add(pkg.FullName);
+                                        //AppNamesCombo.Items.Add(pkg.FullName);
+                                        crashDumpList.Add(pkg.FullName);
+                                        // CrashDumpAppCombo.Items.Add(pkg.FullName);
+                                    }
+                                }
 
-                                    });
+
                             }
 
+                            appNamesList.Sort();
+                            appNamesListFull.Sort();
+                            crashDumpList.Sort();
+                            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                        () =>
+                                        {
+                                            appsComboBox.ItemsSource = appNamesListFull;
+                                            AppNamesCombo.ItemsSource = appNamesList;
+                                            CrashDumpAppCombo.ItemsSource = crashDumpList;
+                                        });
 
-                        });
-                        isConnected = true;
-                        await Task.Run(() =>
-                        {
-                            FetchProcessInfo();
-                            FillInitialRealTimeData();
-                            FetchHWInfo();
-                        });
-                        await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+
+
+
+                            portal.RealtimeEventsMessageReceived += Portal_RealtimeEventsMessageReceived;
+                           // ETWLogger.Add($"[Timestamp]\n[ID] Provider\nValues\n\n");
+                            var ETWStart = portal.GetEtwProvidersAsync();
+                            ETWResult = ETWStart.Result;
+                            List<string> etwprovlist = new List<string>();
+                            foreach (var etw in ETWResult.Providers)
+                            {
+                                etwprovlist.Add(etw.Name);
+
+                            }
+                            etwprovlist.Sort();
+                            foreach (var prov in etwprovlist)
+                            {
+                                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                                () =>
                                {
-                                   ProgBar.Visibility = Visibility.Collapsed;
-                                   ProgBar.IsEnabled = false;
-                                   ProgBar.IsIndeterminate = false;
-                                   address.BorderBrush = new SolidColorBrush(Windows.UI.Colors.Green);
+                                   CrashAppList.Items.Add(prov);
                                });
+                            }
+
+                        });
+
+
+                        isConnected = true;
+                        // await Task.Run(() =>
+                        //{
+
+                        FetchProcessInfo();
+                        FillInitialRealTimeData();
+                        FetchHWInfo();
+                        FetchKnownFolders();
+
+                        FetchWifiInformation();
+
+                        //   });
+
+
+                        /// Crash dumps for Windows 10 Mobile are limited to Insider builds.... I NEED to have a nicer way to check this...
+                        /// Crash Dumps cause a crash on insider builds also, not sure why :(
+
+                        if (portal.DeviceFamily == "Windows.Mobile")
+                        {
+
+                            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                           () =>
+                           {
+                               MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "CrashDumpsPivot"));
+                           });
+
+                        }
+                        else
+                        {
+
+                            DumpFileSettings test = await portal.GetDumpFileSettingsAsync();
+                            dumpType = test.DumpType;
+                            autoreboot = test.AutoReboot;
+                            maxDumpCount = test.MaxDumpCount;
+                            overwriteDump = test.Overwrite;
+                            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                   () =>
+                                   {
+                                       switch (dumpType)
+                                       {
+                                           case DumpFileSettings.DumpTypes.Disabled:
+                                               IsCrashDumpEnabled = false;
+                                               AutoRebootTog.IsEnabled = false;
+                                               OverwriteDumpTog.IsEnabled = false;
+                                               MaxDumpSlider.IsEnabled = false;
+                                               DumpDisabledItem.IsSelected = true;
+                                               DumpTypeCombo.SelectedIndex = 0;
+                                               break;
+                                           case DumpFileSettings.DumpTypes.CompleteMemoryDump:
+                                               IsCrashDumpEnabled = true;
+                                               DumpCompleteItem.IsSelected = true;
+                                               DumpTypeCombo.SelectedIndex = 1;
+                                               MaxDumpSlider.Value = maxDumpCount;
+                                               AutoRebootTog.IsOn = autoreboot;
+                                               OverwriteDumpTog.IsOn = overwriteDump;
+                                               AutoRebootTog.IsEnabled = true;
+                                               OverwriteDumpTog.IsEnabled = true;
+                                               MaxDumpSlider.IsEnabled = true;
+                                               break;
+                                           case DumpFileSettings.DumpTypes.KernelDump:
+                                               IsCrashDumpEnabled = true;
+                                               DumpKernelItem.IsSelected = true;
+                                               DumpTypeCombo.SelectedIndex = 2;
+                                               MaxDumpSlider.Value = maxDumpCount;
+                                               AutoRebootTog.IsOn = autoreboot;
+                                               OverwriteDumpTog.IsOn = overwriteDump;
+                                               AutoRebootTog.IsEnabled = true;
+                                               OverwriteDumpTog.IsEnabled = true;
+                                               MaxDumpSlider.IsEnabled = true;
+
+                                               break;
+                                           case DumpFileSettings.DumpTypes.Minidump:
+                                               IsCrashDumpEnabled = true;
+                                               DumpMiniItem.IsSelected = true;
+                                               DumpTypeCombo.SelectedIndex = 3;
+                                               MaxDumpSlider.Value = maxDumpCount;
+                                               AutoRebootTog.IsOn = autoreboot;
+                                               OverwriteDumpTog.IsOn = overwriteDump;
+                                               AutoRebootTog.IsEnabled = true;
+                                               OverwriteDumpTog.IsEnabled = true;
+                                               MaxDumpSlider.IsEnabled = true;
+
+                                               break;
+                                           default:
+                                               IsCrashDumpEnabled = false;
+                                               AutoRebootTog.IsEnabled = false;
+                                               OverwriteDumpTog.IsEnabled = false;
+                                               MaxDumpSlider.IsEnabled = false;
+                                               DumpDisabledItem.IsSelected = true;
+                                               DumpTypeCombo.SelectedIndex = 0;
+
+                                               break;
+                                       }
 
 
 
 
-                       
+                                   });
+                        }
 
-                        
+
+                       await Task.Delay(3000);
+                        await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                              () =>
+                              {
+                                  ProgBar.Visibility = Visibility.Collapsed;
+                                  ProgBar.IsEnabled = false;
+                                  ProgBar.IsIndeterminate = false;
+                                  address.BorderBrush = new SolidColorBrush(Windows.UI.Colors.Green);
+                                  connectToDevice.IsEnabled = false;
+                                  EnablePivotPages(true);
+                                  if (WDPAddress.Contains("127.0.0.1"))
+                                  {
+                                      LocalAppsPanel.Visibility = Visibility.Visible;
+                                  }
+                                  else
+                                  {
+                                      LocalAppsPanel.Visibility = Visibility.Collapsed;
+                                  }
+                              });
+                        SaveLastAddress(WDPAddress);
+                        FinishedLoadingData = true;
+
+
+                        Debug.WriteLine("Finished loading data");
+
 
 
                     }
                     else if (connectArgs.Status == DeviceConnectionStatus.Failed)
                     {
                         sb.AppendLine("Failed to connect to the device.");
-                        sb.AppendLine($"{connectArgs.Message}\n\n{connectArgs.Phase}");
+                        sb.AppendLine($"Message: {connectArgs.Message}\n\nPhase: {connectArgs.Phase}");
+                        connectToDevice.IsEnabled = true;
                     }
                 };
 
@@ -271,15 +561,25 @@ namespace WPDevPortal
                         this.certificate = await portal.GetRootDeviceCertificateAsync(true);
                     }
                     await portal.ConnectAsync(manualCertificate: this.certificate);
+                    EnableDeviceControls(true);
+
                 }
                 catch (Exception exception)
                 {
-                    sb.AppendLine(exception.Message);
+                    EnableDeviceControls(true);
+                    ProgBar.Visibility = Visibility.Collapsed;
+                    ProgBar.IsEnabled = false;
+                    ProgBar.IsIndeterminate = false;
+                    address.BorderBrush = new SolidColorBrush(Windows.UI.Colors.Red);
+                    ExceptionHelper.Exceptions.ThrownExceptionErrorExtended(exception);
+                    //sb.AppendLine(exception.Message);
+                    connectToDevice.IsEnabled = true;
                 }
 
                 this.commandOutput.Text = sb.ToString();
-                EnableDeviceControls(true);
+
                 EnableConnectionControls(true);
+                connectToDevice.IsEnabled = false;
             }
             catch (Exception ex)
             {
@@ -288,8 +588,94 @@ namespace WPDevPortal
                 ProgBar.IsIndeterminate = false;
                 address.BorderBrush = new SolidColorBrush(Windows.UI.Colors.Red);
                 commandOutput.Text = ex.Message;
-                //ExceptionHelper.Exceptions.ThrownExceptionErrorExtended(ex);
+                connectToDevice.IsEnabled = true;
+                ExceptionHelper.Exceptions.ThrownExceptionErrorExtended(ex);
             }
+        }
+
+        private async void Portal_RealtimeEventsMessageReceived(DevicePortal sender, WebSocketMessageReceivedEventArgs<EtwEvents> args)
+        {
+            if (IsETWStarted == true)
+            {
+                if (args.Message == null)
+                {
+                    await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                    () =>
+                                    {
+                                        ETWLogOutput.Text = "Null";
+                                    });
+                }
+                else
+                {
+
+                    ETWEventList = args;
+                    List<EtwEventInfo> fetchedevents = ETWEventList.Message.Events;
+                    ETW_LOGGER = new List<string>();
+                    i = 0;
+                    foreach (var elist in fetchedevents)
+                    {
+
+                        
+                        var etwTimestamp = DateTime.UtcNow;
+                        string etwprovider = elist.Provider;
+                        uint etwlevellog = elist.Level;
+                        ushort etwID = elist.ID;
+                        string[] etwValues = elist.Values.ToArray();
+                        Dictionary<string, string>.ValueCollection etwvalues = elist.Values;
+                        ulong etwKeyword = elist.Keyword;
+                        Dictionary<string, string>.KeyCollection etwKeys = elist.Keys;
+                        List<string> keysList = new List<string>();
+                        List<string> valuesList = new List<string>();
+                        foreach (var key in etwKeys)
+                        {
+                            keysList.Add(key);
+                        }
+
+                        foreach (string val in etwvalues)
+                        {
+                            valuesList.Add(val);
+                        }
+
+                        List<string> finalList = new List<string>();
+                        
+                        if (keysList.Count == valuesList.Count)
+                        {
+                            for (int i = 0; i < keysList.Count; i++)
+                            {
+                                finalList.Add($"{keysList[i]}: {valuesList[i]}");
+                            }
+                        }
+
+                        ETW_LOGGER.Add($"[{etwTimestamp.ToString()}]\n" +
+                            $"[ID: {etwID.ToString()}] {etwprovider.ToString()}:\n{string.Join("\n", finalList)}\n\n");
+                        i++;
+                        /* await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                    () =>
+                                    {
+                                        ETWLogOutput.Text += $"[{etwTimestamp.ToString()}]\n[{etwID.ToString()}] {etwprovider.ToString()}\n{etwMessage}\n\n";
+                                    });
+                       */
+                    }
+                }
+            }
+        }
+
+       
+
+        private void SaveLastAddress(string address)
+        {
+            localSettings.Values["LastIPAddress"] = address;
+            Debug.WriteLine($"LastIpAddress {address} saved");
+        }
+
+        private string LoadLastAddress()
+        {
+            string address = localSettings.Values["LastIPAddress"] as string;
+            if (address == null)
+            {
+                address = "NoAddress";
+            }
+            return address;
         }
 
         public void timer_Tick(object sender, EventArgs e)
@@ -317,6 +703,7 @@ namespace WPDevPortal
         {
             this.address.IsEnabled = enable;
             this.connectToDevice.IsEnabled = enable;
+
         }
 
 
@@ -330,116 +717,62 @@ namespace WPDevPortal
             this.rebootDevice.IsEnabled = enable;
             this.shutdownDevice.IsEnabled = enable;
 
-            this.getIPConfig.IsEnabled = enable;
-            this.getWiFiInfo.IsEnabled = enable;
         }
 
-
-
-        /// <summary>
-        /// Click handler for the getIpConfig button.
-        /// </summary>
-        /// <param name="sender">The caller of this method.</param>
-        /// <param name="e">The arguments associated with this event.</param>
-        private async void GetIPConfig_Click(object sender, RoutedEventArgs e)
+        private void EnablePivotPages(bool enable)
         {
-            this.ClearOutput();
-            this.EnableConnectionControls(false);
-            this.EnableDeviceControls(false);
-
-            StringBuilder sb = new StringBuilder();
-            sb.Append(commandOutput.Text);
-            sb.AppendLine("Getting IP configuration...");
-            commandOutput.Text = sb.ToString();
-
-            try
+            if (enable == false)
             {
-                IpConfiguration ipconfig = await portal.GetIpConfigAsync();
+                /* MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "ApplicationPivot"));
+                 MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "FilesPivot"));
+                 MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "ProcessesPivot"));
+                 MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "PerfPivot"));
+                 MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "DevicePivot"));
+                 MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "WifiPivotItem"));
+                 MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "CrashDumpsPivot"));
+                 MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "CrashDumpsPivot")); */
 
-                foreach (NetworkAdapterInfo adapterInfo in ipconfig.Adapters)
-                {
-                    sb.Append(" ");
-                    sb.AppendLine(adapterInfo.Description);
-                    sb.Append("  MAC address :");
-                    sb.AppendLine(adapterInfo.MacAddress);
-                    foreach (IpAddressInfo address in adapterInfo.IpAddresses)
-                    {
-                        sb.Append("  IP address :");
-                        sb.AppendLine(address.Address);
-                    }
-                    sb.Append("  DHCP address :");
-                    sb.AppendLine($"{adapterInfo.Dhcp.Address.Address}\n");
-                }
+                ApplicationPivot.Visibility = Visibility.Collapsed;
+                FilesPivot.Visibility = Visibility.Collapsed;
+                ProcessesPivot.Visibility = Visibility.Collapsed;
+                PerfPivot.Visibility = Visibility.Collapsed;
+                DevicePivot.Visibility = Visibility.Collapsed;
+                WifiPivotItem.Visibility = Visibility.Collapsed;
+                CrashDumpsPivot.Visibility = Visibility.Collapsed;
+
+                ApplicationPivot.IsEnabled = false;
+                FilesPivot.IsEnabled = false;
+                ProcessesPivot.IsEnabled = false;
+                PerfPivot.IsEnabled = false;
+                DevicePivot.IsEnabled = false;
+                WifiPivotItem.IsEnabled = false;
+                CrashDumpsPivot.IsEnabled = false;
+
+
             }
-            catch (Exception ex)
+            else
             {
-                //sb.AppendLine("Failed to get IP config info.");
-                //sb.AppendLine(ex.GetType().ToString() + " - " + ex.Message);
-            }
+                ApplicationPivot.Visibility = Visibility.Visible;
+                FilesPivot.Visibility = Visibility.Visible;
+                ProcessesPivot.Visibility = Visibility.Visible;
+                PerfPivot.Visibility = Visibility.Visible;
+                DevicePivot.Visibility = Visibility.Visible;
+                WifiPivotItem.Visibility = Visibility.Visible;
+                CrashDumpsPivot.Visibility = Visibility.Visible;
 
-            commandOutput.Text = sb.ToString();
-            EnableDeviceControls(true);
-            EnableConnectionControls(true);
+                ApplicationPivot.IsEnabled = true;
+                FilesPivot.IsEnabled = true;
+                ProcessesPivot.IsEnabled = true;
+                PerfPivot.IsEnabled = true;
+                DevicePivot.IsEnabled = true;
+                WifiPivotItem.IsEnabled = true;
+                CrashDumpsPivot.IsEnabled = true;
+            }
         }
 
-        /// <summary>
-        /// Click handler for the getWifiInfo button.
-        /// </summary>
-        /// <param name="sender">The caller of this method.</param>
-        /// <param name="e">The arguments associated with this event.</param>
-        private async void GetWifiInfo_Click(object sender, RoutedEventArgs e)
-        {
-            this.ClearOutput();
-            this.EnableConnectionControls(false);
-            this.EnableDeviceControls(false);
 
-            StringBuilder sb = new StringBuilder();
 
-            sb.Append(commandOutput.Text);
-            sb.AppendLine("Getting WiFi interfaces and networks...");
-            commandOutput.Text = sb.ToString();
 
-            try
-            {
-                WifiInterfaces wifiInterfaces = await portal.GetWifiInterfacesAsync();
-                sb.AppendLine("WiFi Interfaces:");
-                foreach (WifiInterface wifiInterface in wifiInterfaces.Interfaces)
-                {
-                    sb.Append(" ");
-                    sb.AppendLine(wifiInterface.Description);
-                    sb.Append("  GUID: ");
-                    sb.AppendLine($"{wifiInterface.Guid.ToString()}\n");
-
-                    WifiNetworks wifiNetworks = await portal.GetWifiNetworksAsync(wifiInterface.Guid);
-                    sb.AppendLine("  Networks:");
-                    foreach (WifiNetworkInfo network in wifiNetworks.AvailableNetworks)
-                    {
-                        sb.Append("   SSID: ");
-                        sb.AppendLine(network.Ssid);
-                        sb.Append("   Profile name: ");
-                        sb.AppendLine(network.ProfileName);
-                        sb.Append("   is connected: ");
-                        sb.AppendLine(network.IsConnected.ToString());
-                        sb.Append("   Channel: ");
-                        sb.AppendLine(network.Channel.ToString());
-                        sb.Append("   Authentication algorithm: ");
-                        sb.AppendLine(network.AuthenticationAlgorithm);
-                        sb.Append("   Signal quality: ");
-                        sb.AppendLine($"{network.SignalQuality.ToString()}\n");
-
-                    }
-                };
-            }
-            catch (Exception ex)
-            {
-                sb.AppendLine("Failed to get WiFi info.");
-                sb.AppendLine(ex.GetType().ToString() + " - " + ex.Message);
-            }
-
-            commandOutput.Text = sb.ToString();
-            EnableDeviceControls(true);
-            EnableConnectionControls(true);
-        }
 
         /// <summary>
         /// PasswordChanged handler for the password text box.
@@ -460,7 +793,7 @@ namespace WPDevPortal
         {
             bool reenableDeviceControls = false;
 
-            this.ClearOutput();
+
             this.EnableConnectionControls(false);
             this.EnableDeviceControls(false);
 
@@ -495,7 +828,7 @@ namespace WPDevPortal
         {
             bool reenableDeviceControls = false;
 
-            this.ClearOutput();
+
             this.EnableConnectionControls(false);
             this.EnableDeviceControls(false);
 
@@ -529,15 +862,7 @@ namespace WPDevPortal
             EnableConnectButton();
         }
 
-        /// <summary>
-        /// Loads a cert file for cert validation.
-        /// </summary>
-        /// <param name="sender">The caller of this method.</param>
-        /// <param name="e">The arguments associated with this event.</param>
-        private async void LoadCertificate_Click(object sender, RoutedEventArgs e)
-        {
-            await LoadCertificate();
-        }
+
 
         /// <summary>
         /// Loads a certificates asynchronously (runs on the UI thread).
@@ -547,27 +872,16 @@ namespace WPDevPortal
         {
             try
             {
-                FileOpenPicker filePicker = new FileOpenPicker();
-                filePicker.SuggestedStartLocation = PickerLocationId.Downloads;
-                filePicker.FileTypeFilter.Add(".cer");
-
-                StorageFile file = await filePicker.PickSingleFileAsync();
-
-                if (file != null)
-                {
-                    IBuffer cerBlob = await FileIO.ReadBufferAsync(file);
-
-                    if (cerBlob != null)
-                    {
-                        certificate = new Certificate(cerBlob);
-                    }
-                }
+                Exceptions.CustomException("TBA: Downloading current WDp Certificate");
             }
             catch (Exception exception)
             {
                 this.commandOutput.Text = "Failed to get cert file: " + exception.Message;
             }
         }
+
+
+        #region ApplicationPage
 
         private void appsComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -577,6 +891,8 @@ namespace WPDevPortal
                 sb1.Clear();
                 string selected = (sender as ComboBox).SelectedItem.ToString();
                 FetchAppInfo(selected);
+                launchApp.IsEnabled = true;
+                uninstallApp.IsEnabled = true;
 
             }
             catch (Exception ex)
@@ -585,33 +901,28 @@ namespace WPDevPortal
             }
         }
         public string stuff { get; set; }
-        private async void CheckInstalledPackages()
-        {
 
 
 
 
-        }
-
-        BitmapImage bitmap;
         string deplist;
         /// <summary>
         /// Fetch Package information
         /// </summary>
         /// <param name="selectedItem"></param>
-        private void FetchAppInfo(string selectedItem)
+        private async void FetchAppInfo(string selectedItem)
         {
             try
             {
                 PackageManager pacman = new PackageManager();
-                
+
                 sb1.Append(applicationList.Text);
                 sb1.AppendLine("Package Info:\n");
                 foreach (var pkg in packages.Result.Packages)
                 {
                     if (pkg.FullName == selectedItem)
                     {
-                        
+
                         IsMatching = true;
                         pkgFullName = pkg.FullName;
                         pkgAppID = pkg.AppId;
@@ -622,34 +933,87 @@ namespace WPDevPortal
                 }
                 if (IsMatching == true)
                 {
-                    
+
                     var test = pacman.FindPackageForUser("", pkgFullName);
                     deplist = string.Empty;
-                    foreach (var dep in test.Dependencies)
-                    {
-                        deplist += $"{dep.DisplayName}\n";
-                    }
-                    sb1.Append("Full Name: \n");
-                    sb1.AppendLine($"{pkgFullName}\n");
-                    sb1.Append("AppID: \n");
-                    sb1.AppendLine($"{pkgAppID}\n");
-                    sb1.Append("Origin: \n");
-                    sb1.AppendLine($"{pkgOrigin}\n");
-                    sb1.Append("Publisher: \n");
-                    sb1.AppendLine($"{pkgPublisher}\n");
-                    sb1.Append("Version: \n");
-                    sb1.AppendLine($"{pkgVersion}\n");
-                    sb1.Append("Install Date: \n");
-                    sb1.AppendLine($"{test.InstalledDate.ToString()}\n");
-                    sb1.Append("Location: \n");
-                    sb1.AppendLine($"{test.InstalledLocation.Path}\n");
-                    sb1.Append("Dependencies:\n");
-                    sb1.AppendLine($"{deplist}\n");
-                    
 
+                    StorageFolder temp = ApplicationData.Current.TemporaryFolder;
+                    var appEntry = await test.GetAppListEntriesAsync();
+                    var packageID = test.Id.FullName;
+                    var PackageLogo = "";
+                    var fileName = $"{packageID}.png";
+                    var logoSize = new Size
+                    {
+                        Height = 150,
+                        Width = 150
+                    };
+                    if (appEntry != null && appEntry.Count > 0)
+                    {
+                        var Logo = await appEntry?.FirstOrDefault()?.DisplayInfo?.GetLogo(logoSize)?.OpenReadAsync();
+                        if (Logo != null)
+                        {
+                            var storageFile = await temp.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
+                            using (var targetStream = await storageFile.OpenAsync(FileAccessMode.ReadWrite))
+                            {
+                                var output = targetStream.AsStreamForWrite();
+                                Logo.AsStream().CopyTo(output);
+                                output.Dispose();
+                                PackageLogo = storageFile.Path;
+
+                                try
+                                {
+                                    Logo.Dispose();
+                                    storageFile = null;
+                                }
+                                catch (Exception e)
+                                {
+
+                                }
+                            }
+                        }
+                    }
+
+                    await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                () =>
+                                {
+
+                                    AppxImageIcon.Source = new BitmapImage(new Uri(PackageLogo));
+
+                                    applicationList.Text = $"ID: {pkgAppID}\n";
+                                    AppxDetails.Text =
+                                        $"Full Name: \n{pkgFullName}\n\n" +
+                                        $"Publisher: {pkgPublisher}\n\n" +
+                                        $"Version: {pkgVersion}\n\n" +
+                                    $"Origin: {pkgOrigin}\n\n" +
+                                        $"Install Date: \n{test.InstalledDate}\n\n" +
+                                        $"Location: \n{test.InstalledLocation.Path}\n\n";
+
+                                });
+
+
+                    try
+                    {
+                        if (test.Dependencies != null)
+                        {
+                            foreach (var dep in test.Dependencies)
+                            {
+
+                                deplist += $"{dep.Description}\n";
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+
+                    }
+                    if (deplist != null)
+                    {
+                        AppxDetails.Text += $"Dependencies: \n{deplist}";
+                    }
                 }
-                applicationList.Text = sb1.ToString();
-                
+
+
+
             }
             catch (Exception ex)
             {
@@ -752,6 +1116,10 @@ namespace WPDevPortal
             }
         }
 
+
+
+
+        private StorageFile tempStorage;
         /// <summary>
         /// Load file to install
         /// </summary>
@@ -759,17 +1127,213 @@ namespace WPDevPortal
         /// <param name="e"></param>
         private async void applicationLoadButton_Click(object sender, RoutedEventArgs e)
         {
-            FileOpenPicker picker = new FileOpenPicker();
-            picker.FileTypeFilter.Add(".appx");
-            picker.FileTypeFilter.Add(".appxbundle");
-            pkgFile = await picker.PickSingleFileAsync();
-            if (pkgFile == null)
-            {
-                applicationList.Text = "No File Selected";
-            }
-            applicationList.Text = $"Loaded: {pkgFile.Name}\n";
+            LoadApplication();
+            installPkg.IsEnabled = true;
+
+
 
         }
+
+        StorageFile FoundStoreLogo;
+        Stream innerStream;
+        private async void LoadApplication()
+        {
+            try
+            {
+                //AppxImageIcon.Source = null;
+
+
+                tempStorage = await ApplicationData.Current.TemporaryFolder.CreateFileAsync("logo.png", CreationCollisionOption.ReplaceExisting);
+
+                FileOpenPicker picker = new FileOpenPicker();
+                picker.FileTypeFilter.Add(".appx");
+                picker.FileTypeFilter.Add(".appxbundle");
+                pkgFile = await picker.PickSingleFileAsync();
+
+                if (pkgFile == null)
+                {
+                    applicationList.Text = "No File Selected";
+
+                }
+                else
+                {
+                    applicationList.Text = $"Loaded {pkgFile.Name}, Reading Manifest.\n";
+
+                    Stream fileStream = await pkgFile.OpenStreamForReadAsync();
+                    var tempFolder = await ApplicationData.Current.TemporaryFolder.CreateFolderAsync(Path.GetFileName(pkgFile.Path), CreationCollisionOption.ReplaceExisting);
+
+                    switch (Path.GetExtension(pkgFile.Path).ToLower())
+                    {
+                        case ".appxbundle":
+                            updateFileData(pkgFile, null);
+                            break;
+                        case ".appx":
+                            updateFileData(pkgFile, null);
+                            break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Exceptions.ThrownExceptionErrorExtended(ex);
+            }
+
+        }
+
+        string FileIcon;
+        StorageFile tempFile;
+        public async void updateFileData(StorageFile storageFile = null, Stream BundleStream = null)
+        {
+            try
+            {
+                AppxDetails.Text = "";
+                List<string> permissionsList = new List<string>();
+                if (storageFile != null)
+                {
+
+                    var fileExt = Path.GetExtension(storageFile.Name);
+                    Stream packageStream = null;
+                    var stream = (await storageFile.OpenReadAsync()).AsStream();
+                    bool isAppxBundle = false;
+
+                    //Main Data
+                    var packageName = "";
+                    var packagePublisher = "";
+                    var packageLogo = "";
+
+                    switch (fileExt.ToLower())
+                    {
+                        case ".appxbundle":
+                        case ".msixbundle":
+                            ZipArchive zip = new ZipArchive(stream);
+                            foreach (var item in zip.Entries)
+                            {
+                                if (item.Name.Contains(".appx"))
+                                {
+                                    if (!item.Name.Contains("scale"))
+                                    {
+                                        if (item.Name.Contains("ARM") || item.Name.Contains("arm"))
+                                        {
+                                            packageStream = item.Open();
+                                            isAppxBundle = true;
+                                            break;
+                                        }
+                                        else
+                                        {
+                                            packageStream = item.Open();
+                                            isAppxBundle = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            break;
+
+                        case ".appx":
+                        case ".msix":
+                            packageStream = stream;
+                            break;
+                    }
+                    if (packageStream != null)
+                    {
+                        var package = System.IO.Packaging.Package.Open(packageStream);
+                        var part = package.GetPart(new Uri("/AppxManifest.xml", UriKind.Relative));
+                        var manifest = XElement.Load(part.GetStream());
+
+
+                        var properties = manifest.Element(manifest.Name.Namespace + "Properties");
+                        packageName = properties.Element(manifest.Name.Namespace + "DisplayName").Value;
+                        packagePublisher = properties.Element(manifest.Name.Namespace + "PublisherDisplayName").Value;
+                        packageLogo = properties.Element(manifest.Name.Namespace + "Logo").Value;
+                        XmlReader reader = XmlReader.Create(part.GetStream());
+
+
+                        while (reader.Read())
+                        {
+                            if (reader.Name == "Capabilities")
+                            {
+                                XmlReader inner = reader.ReadSubtree();
+                                permissionsList = new List<string>();
+
+                                while (inner.Read())
+                                {
+                                    if (reader.Name.Contains("Capability"))
+                                    {
+                                        permissionsList.Add(reader.GetAttribute("Name"));
+                                    }
+
+                                }
+
+                            }
+                        }
+
+                        try
+                        {
+
+                            var packageLogoResolved = packageLogo.Replace("\\", "/");
+                            var logoExt = Path.GetExtension(packageLogoResolved);
+
+                            //We have to remove the extension and test with 'StartsWith'
+                            //Logo name will contains at the end .scale-100 ..etc
+                            var logoName = packageLogoResolved.Replace(logoExt, "");
+                            var packageParts = package.GetParts();
+                            foreach (var packagePart in packageParts)
+                            {
+                                if (packagePart.Uri.ToString().StartsWith($"/{logoName}"))
+                                {
+                                    var logoPartStream = packagePart.GetStream();
+                                    var tempFile = await ApplicationData.Current.TemporaryFolder.CreateFileAsync(Path.GetFileName(packageLogo), CreationCollisionOption.GenerateUniqueName);
+                                    var readStream = logoPartStream.AsInputStream().AsStreamForRead();
+                                    byte[] buffer = new byte[readStream.Length];
+                                    await readStream.ReadAsync(buffer, 0, buffer.Length);
+                                    await FileIO.WriteBufferAsync(tempFile, CryptographicBuffer.CreateFromByteArray(buffer));
+                                    FileIcon = tempFile.Path;
+                                    break;
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine(ex.Message + "\n" + ex.StackTrace);
+                        }
+
+
+                        package.Close();
+
+                    }
+
+                    applicationList.Text =
+                           $"Name: {packageName}\n" +
+                           $"Publisher: {packagePublisher}";
+
+                    foreach (string cap in permissionsList)
+                    {
+                        AppxDetails.Text += $"{RetrieveCapability(cap)}\n";
+                    }
+                    AppxImageIcon.Source = new BitmapImage(new Uri(FileIcon));
+                    permissionsList.Clear();
+                    // package.Close();
+
+                    if (packageStream != null)
+                    {
+                        packageStream.Dispose();
+                    }
+                    if (stream != null)
+                    {
+                        stream.Dispose();
+                    }
+
+
+                }
+            }
+            catch (Exception ex)
+            {
+            }
+        }
+
+
+
+
 
         /// <summary>
         /// Load dependencies for the App being Installed
@@ -788,7 +1352,7 @@ namespace WPDevPortal
             }
             foreach (var file in depFiles)
             {
-                applicationList.Text += $"Dependency: {file.Name}\n";
+                AppxDetails.Text += $"\nDependency: {file.Name}\n";
                 depList.Add(file);
             }
         }
@@ -809,8 +1373,15 @@ namespace WPDevPortal
                 AppProgbar.IsIndeterminate = true;
                 AppProgbar.IsEnabled = true;
                 applicationList.Text = $"Installing {pkgFile.Name}";
+
+                portal.AppInstallStatus += Portal_AppInstallStatus;
                 await portal.InstallApplicationAsync(pkgFile.Name, pkgFile, depList);
-                applicationList.Text = "Complete!";
+
+
+
+
+                //Debug.WriteLine(status.ToString());
+                // applicationList.Text = status.ToString();
                 AppProgbar.Visibility = Visibility.Collapsed;
                 AppProgbar.IsIndeterminate = false;
                 AppProgbar.IsEnabled = false;
@@ -824,11 +1395,28 @@ namespace WPDevPortal
             }
         }
 
+        private async void Portal_AppInstallStatus(DevicePortal sender, ApplicationInstallStatusEventArgs args)
+        {
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                () =>
+                                {
+                                    var status = args.Status;
+                                    var message = args.Message;
+                                    var phase = args.Phase;
+                                    applicationList.Text = message;
+                                });
+        }
+
+        public void AppInstallStatusEvent()
+        {
+
+        }
+
+        #endregion
 
 
 
-
-
+        #region FetchProcessInfo
 
         public AppRowInfo processRow { get; set; }
         private async void FetchProcessInfo()
@@ -971,14 +1559,14 @@ namespace WPDevPortal
 
             }
         }
+        #endregion
 
 
 
-       
 
         private string PerformanceResults;
         private string engines { get; set; }
-        private async void FetchPerfInfo()
+        private void FetchPerfInfo()
         {
             Task<SystemPerformanceInformation> perf = portal.GetSystemPerfAsync();
             perfResult = perf.Result;
@@ -1017,6 +1605,198 @@ namespace WPDevPortal
 
 
 
+        #region ETWPage
+
+        int etwnumber = -1;
+        string selectedetw;
+        private void CrashAppList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            etwToggle.IsEnabled = true;
+            selectedetw = (sender as ComboBox).SelectedItem.ToString();
+
+        }
+
+
+        private async void etwToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+
+            if (etwToggle.IsOn == true)
+            {
+                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                               () =>
+                               {
+                                   ETWLogOutput.Text = "Started listening for Events";
+                               });
+                try
+                {
+
+                    await portal.StartListeningForEtwEventsAsync();
+                    StartETW();
+                }
+                catch (Exception ex)
+                {
+                    ETWLogOutput.Text = $"{ex.Message}\n\n{ex.StackTrace}";
+                    StopETW();
+                    etwToggle.IsOn = false;
+                }
+
+            }
+            else
+            {
+                StopETW();
+                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                               () =>
+                               {
+                                   ETWLogOutput.Text = "Stopped Listening for Events";
+                               });
+            }
+
+        }
+
+
+        private async void StartETW()
+        {
+            etwTimer = 0;
+            etwTimerBox.Text = string.Empty;
+            IsETWStarted = true;
+            if (etwnumber == -1)
+            {
+                etwnumber = 5;
+            }
+            await Task.Run(async () =>
+            {
+
+
+                foreach (var provider in ETWResult.Providers)
+                {
+                    if (provider.Name == selectedetw)
+                    {
+
+                        Task providerState = portal.ToggleEtwProviderAsync(provider, true, etwnumber);
+
+                        await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                 () =>
+                                 {
+                                     ETWLogOutput.Text = $"Started tracing {selectedetw}\n";
+                                 });
+                    }
+                }
+
+
+            });
+        }
+
+
+
+        private async void StopETW()
+        {
+            etwTimer = 0;
+            //etwToggle.OnContent = "On";
+            IsETWStarted = false;
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                               () =>
+                               {
+                                   SaveETWLog.IsEnabled = true;
+                                   ViewETWLog.IsEnabled = true;
+                                   ClearLog.IsEnabled = true;
+                               });
+            await Task.Run(() =>
+           {
+               foreach (var provider in ETWResult.Providers)
+               {
+                   if (provider.Name == selectedetw)
+                   {
+                       Task providerState = portal.ToggleEtwProviderAsync(provider, false, etwnumber);
+                       //await portal.StopListeningForEtwEventsAsync();
+                   }
+               }
+
+
+           });
+        }
+
+        private void etwLevel_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            int selected = (sender as ComboBox).SelectedIndex;
+            switch (selected)
+            {
+                case 0:
+                    etwnumber = 1;
+                    return;
+                case 1:
+                    etwnumber = 2;
+                    return;
+                case 2:
+                    etwnumber = 3;
+                    return;
+                case 3:
+                    etwnumber = 4;
+                    return;
+                case 4:
+                    etwnumber = 5;
+                    return;
+
+
+
+            }
+
+        }
+
+
+        private void ViewETWLog_Click(object sender, RoutedEventArgs e)
+        {
+            if (ETW_LOGGER == null)
+            {
+                ETWLogOutput.Text = "No Events Logged.";
+            }
+            else
+            {
+                ETWLogOutput.Text = string.Join("\n", ETW_LOGGER);
+            }
+        }
+
+        private async void SaveETWLog_Click(object sender, RoutedEventArgs e)
+        {
+
+            FolderPicker picker = new FolderPicker();
+            picker.FileTypeFilter.Add(".txt");
+            StorageFolder storage = await picker.PickSingleFolderAsync();
+            if (storage == null)
+            {
+                return;
+            }
+            StorageFile SavedETWLog = await storage.CreateFileAsync($"{selectedetw}-{DateTime.Now.ToString("yyyyMMdd_hhmmss")}");
+            await FileIO.WriteTextAsync(SavedETWLog, string.Join("\n", ETW_LOGGER));
+
+        }
+
+        private async void ClearLog_Click(object sender, RoutedEventArgs e)
+        {
+            SaveETWLog.IsEnabled = false;
+            ViewETWLog.IsEnabled = false;
+            ClearLog.IsEnabled = true;
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                               () =>
+                               {
+                                   //Array.Clear(ETWLogger, 0, ETWLogger.Length);
+                                   ETW_LOGGER.Clear();
+                                   ETWLogOutput.Text = string.Empty;
+                               });
+        }
+
+        private void ETWLogOutput_SelectionChanged(object sender, RoutedEventArgs e)
+        {
+            if (etwToggle.IsOn == true)
+            {
+                if (IsETWStarted == true)
+                {
+                    etwTimer++;
+                    etwTimerBox.Text = etwTimer.ToString();
+                }
+            }
+
+        }
+        #endregion
 
 
 
@@ -1025,6 +1805,20 @@ namespace WPDevPortal
 
 
 
+        #region RealtimeData
+        // OLD PAGING GRAPH XAML - NOT USED
+        //  <Border x:Name="PagingBorder" RelativePanel.Below="NetData" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+        //                <TextBlock x:Name="PagingHeader" Text="Paging:" RelativePanel.Below="PagingBorder"    RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Margin="5,8,5,5"/>
+        //                <Border x:Name="PagingGraphBorder" RelativePanel.Below="PagingHeader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Height="3" Background="#FF1C1C1C" BorderBrush="#FF1C1C1C"/>
+        //                <qc:SerialChart x:Name="PagingData" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="PagingGraphBorder" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="PagedPages" PlotAreaBackground="#FF1E1E1E" AxisForeground="White" Background="#FF1E1E1E" GridStroke="{x:Null}">
+        //                    <qc:SerialChart.Graphs >
+        //                        <qc:LineGraph Title = "Paged Pool" ValueMemberPath="PagedPages"/>
+        //                        <qc:LineGraph Title = "Non-Paged Pool" ValueMemberPath="NonPagedPages"/>
+        //
+        //
+        //
+        //                    </qc:SerialChart.Graphs>
+        //                </qc:SerialChart>
 
 
 
@@ -1111,6 +1905,7 @@ namespace WPDevPortal
                     GPUMemShared = gpuSharedUsed,
                     GPUMemSelf = gpuSelfUsed,
                     GPUMemSelfTotal = gpuSelfTotal,
+                    GPUUsedTotal = gpuSelfUsed + gpuSharedUsed,
                     IORead = ioreaddata,
                     IOWrite = iowritedata,
                     IOOther = iootherdata,
@@ -1153,7 +1948,7 @@ namespace WPDevPortal
             {
                 SystemPerformanceInformation perf = await portal.GetSystemPerfAsync();
 
-                RealTimeData.RemoveAt(0);
+                // RealTimeData.RemoveAt(0);
                 var gpu = perf.GpuData.Adapters;
                 var network = perf.NetworkData;
                 uint pagedPoolPages = perf.PagedPoolPages;
@@ -1228,6 +2023,7 @@ namespace WPDevPortal
                     GPUMemShared = gpuSharedUsed,
                     GPUMemSelf = gpuSelfUsed,
                     GPUMemSelfTotal = gpuSelfTotal,
+                    GPUUsedTotal = gpuSelfUsed + gpuSharedUsed,
                     IORead = ioreaddata,
                     IOWrite = iowritedata,
                     IOOther = iootherdata,
@@ -1241,6 +2037,7 @@ namespace WPDevPortal
                     TotalPages = totalpages
 
                 });
+                /// GPUUsageText.Text = $"Shared: {GPUMemShared.ToFileSize()}, Dedicated: {gpuSelfUsed}";
             }
         }
 
@@ -1254,6 +2051,7 @@ namespace WPDevPortal
             public double GPUMemSelf { get; set; }
             public double GPUMemSharedTotal { get; set; }
             public double GPUMemSelfTotal { get; set; }
+            public double GPUUsedTotal { get; set; }
             public double IORead { get; set; }
             public double IOWrite { get; set; }
             public double IOOther { get; set; }
@@ -1267,22 +2065,66 @@ namespace WPDevPortal
             public double TotalPages { get; set; }
         }
 
+        #endregion
+
+
+
+        #region HWInfoPage
+
+        public class HardwareInformation
+        {
+            public string HWDeviceName { get; set; }
+            public string Manufacturer { get; set; }
+            public string ID { get; set; }
+            public string ParentID { get; set; }
+            public string Description { get; set; }
+            public string Class { get; set; }
+            public int StatusCode { get; set; }
+            public int ErrorCode { get; set; }
+            public string FullDetails { get; set; }
+        }
+
 
 
         private Task<List<Device>> hardwareResult { get; set; }
         private async void FetchHWInfo()
         {
+            List<HardwareInformation> DeviceInfo = new List<HardwareInformation>();
 
             hardwareList = portal.GetDeviceListAsync();
             hardwareResult = hardwareList;
             foreach (Device device in hardwareResult.Result)
             {
-                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+
+                DeviceInfo.Add(new HardwareInformation
+                {
+                    HWDeviceName = device.FriendlyName,
+                    Manufacturer = device.Manufacturer,
+                    ID = device.ID,
+                    ParentID = device.ParentID,
+                    Description = device.Description,
+                    Class = device.Class,
+                    StatusCode = device.StatusCode,
+                    ErrorCode = device.ProblemCode,
+                    FullDetails =
+                    $"Properties:\n" +
+                    $"Friendly Name: {device.FriendlyName}\n\n" +
+                    $"ID: {device.ID}\n\n" +
+                    $"ParentID: {device.ParentID}\n\n" +
+                    $"Class: {device.Class}\n\n" +
+                    $"Manufacturer: {device.Manufacturer}\n\n\n"
+                });
+
+
+            }
+            //DeviceInfo.Sort();
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                                  () =>
                                  {
-                                     DriverComboBox.Items.Add(device.ID);
+
+
+                                     DevicesListView.ItemsSource = DeviceInfo;
                                  });
-            }
 
         }
 
@@ -1300,72 +2142,79 @@ namespace WPDevPortal
         string manufacture;
         int statusCode;
         int ErrorCode;
-        private async void FetchHWInfoResults(string selected)
+        private void FetchHWInfoResults(string selected)
         {
 
 
-            sb2.Clear();
-            DevicesText.Text = string.Empty;
-            foreach (var device in hardwareResult.Result)
-            {
-                if (device.ID == selected)
-                {
+            /*  sb2.Clear();
 
-                    if (device.FriendlyName == string.Empty)
-                    {
-                        name = "N/A";
-                    }
-                    else
-                    {
-                        name = device.FriendlyName;
-                    }
-                    ID = device.ID;
-                    parentID = device.ParentID;
-                    if (device.Class == string.Empty)
-                    {
-                        hwclass = "N/A";
-                    }
-                    else
-                    {
-                        hwclass = device.Class;
-                    }
-                    if (device.Description == string.Empty)
-                    {
-                        description = "N/A";
+              foreach (var device in hardwareResult.Result)
+              {
+                  if (device.ID == selected)
+                  {
 
-                    }
-                    else
-                    {
-                        description = device.Description;
-                    }
-                    if (device.Manufacturer == string.Empty)
-                    {
-                        manufacture = "Unknown";
-                    }
-                    else
-                    {
-                        manufacture = device.Manufacturer;
-                    }
-                    statusCode = device.StatusCode;
-                    ErrorCode = device.ProblemCode;
-                    sb2.Append(DevicesText.Text);
-                    sb2.AppendLine("");
-                    sb2.Append("Name: ");
-                    sb2.AppendLine(name);
-                    sb2.Append("Description: ");
-                    sb2.AppendLine(description);
-                    sb2.Append("Class: ");
-                    sb2.AppendLine(hwclass);
-                    sb2.Append("ID: ");
-                    sb2.AppendLine(ID);
-                    sb2.Append("Parent ID: ");
-                    sb2.AppendLine(parentID);
-                    DevicesText.Text = sb2.ToString();
-                }
+                      if (device.FriendlyName == string.Empty)
+                      {
+                          name = "N/A";
+                      }
+                      else
+                      {
+                          name = device.FriendlyName;
+                      }
+                      ID = device.ID;
+                      parentID = device.ParentID;
+                      if (device.Class == string.Empty)
+                      {
+                          hwclass = "N/A";
+                      }
+                      else
+                      {
+                          hwclass = device.Class;
+                      }
+                      if (device.Description == string.Empty)
+                      {
+                          description = "N/A";
+
+                      }
+                      else
+                      {
+                          description = device.Description;
+                      }
+                      if (device.Manufacturer == string.Empty)
+                      {
+                          manufacture = "Unknown";
+                      }
+                      else
+                      {
+                          manufacture = device.Manufacturer;
+                      }
+                      statusCode = device.StatusCode;
+                      ErrorCode = device.ProblemCode;
+                      sb2.Append(DevicesText.Text);
+                      sb2.AppendLine("");
+                      sb2.Append("Name: ");
+                      sb2.AppendLine(name);
+                      sb2.Append("Description: ");
+                      sb2.AppendLine(description);
+                      sb2.Append("Class: ");
+                      sb2.AppendLine(hwclass);
+                      sb2.Append("ID: ");
+                      sb2.AppendLine(ID);
+                      sb2.Append("Parent ID: ");
+                      sb2.AppendLine(parentID);
+                      DevicesText.Text = sb2.ToString();
+                  } 
 
 
-            }
+              } */
         }
+
+        #endregion
+
+
+
+
+        #region Updater
         /// <summary>
         /// MUST CHANGE THESE BEFORE EACH PUBLIC GITHUB RELEASE
         /// 
@@ -1373,11 +2222,11 @@ namespace WPDevPortal
         /// 
         /// MUST CHANGE THESE BEFORE EACH PUBLIC GITHUB RELEASE
         /// </summary>
-        public static string CurrentBuildVersion = "1.0.14.0";
-        public static string PreviousBuildVersion = "1.0.13.0";
-        public static string NextBuildVersion = "1.0.15.0";
-        public static string UploadedFileName = "WPDevPortal_1.0.15.0_Test.zip";
-        public static string AppxUpdateName = "WPDevPortal_1.0.15.0_x86_x64_arm.appxbundle";
+        public static string CurrentBuildVersion = "1.0.15.0";
+        public static string PreviousBuildVersion = "1.0.14.0";
+        public static string NextBuildVersion = "1.0.16.0";
+        public static string UploadedFileName = "WPDevPortal_1.0.16.0_Test.zip";
+        public static string AppxUpdateName = "WPDevPortal_1.0.16.0_x86_x64_arm.appxbundle";
 
         public StorageFolder folder { get; set; }
         public StorageFile file { get; set; }
@@ -1419,10 +2268,12 @@ namespace WPDevPortal
 
                 }
                 //Test Function
-                // if(latestRelease.TagName == PreviousBuildVersion)
-                // {
-                //     UpdateOut.Text = "You are on an unreleased build";
-                // }
+                if (latestRelease.TagName == PreviousBuildVersion)
+                {
+                    UpdateDetailsBox.Text = "You are on an unreleased build";
+                    DLButton.Visibility = Visibility.Collapsed;
+                    UpdateBtn.Visibility = Visibility.Collapsed;
+                }
 
                 else
                 {
@@ -1430,7 +2281,7 @@ namespace WPDevPortal
                     UpdateURL = $"https://github.com/Empyreal96/WP_Device_Portal/releases/download/{latestRelease.TagName}/{UploadedFileName}";
 
                     UpdateDetailsBox.Visibility = Visibility.Visible;
-                    
+
 
                     UpdateDetailsBox.Text = $"Latest Build: {latestRelease.TagName}\n";
                     UpdateDetailsBox.Text += $"Current Build: {CurrentBuildVersion}\n";
@@ -1439,7 +2290,7 @@ namespace WPDevPortal
                     UpdateDetailsBox.Text += $"Download URL: {UpdateURL}\n";
                     DLButton.Visibility = Visibility.Visible;
                     UpdateBtn.Visibility = Visibility.Collapsed;
-                   
+
                 }
             }
         }
@@ -1448,7 +2299,7 @@ namespace WPDevPortal
         {
             try
             {
-
+                UpdateDetailsBox.Text = "Checking for updates";
                 ProgressBarDownload.Visibility = Visibility.Visible;
                 DLButton.Visibility = Visibility.Collapsed;
                 FolderPicker folderPicker = new FolderPicker();
@@ -1482,7 +2333,7 @@ namespace WPDevPortal
             UpdateDetailsBox.Text = "Extracting Update to App Cache";
             try
             {
-                
+
                 await ArchiverPlus.Decompress(file, Windows.Storage.ApplicationData.Current.LocalCacheFolder);
 
                 var options = new Windows.System.LauncherOptions();
@@ -1547,6 +2398,1716 @@ namespace WPDevPortal
                 //ButtonDownload.IsEnabled = true;
                 downloadOperation = null;
             }
+
+        }
+
+
+
+
+        #endregion
+
+
+        #region File Manager
+        public class FolderInfo
+        {
+            public string ListViewFileName { get; set; }
+            public string ListViewFileSizeType { get; set; }
+            public BitmapImage ListViewFileIcon { get; set; }
+        }
+        FolderContents folderContents { get; set; }
+        public async void FetchKnownFolders()
+        {
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                () =>
+                                {
+                                    KnownFoldersCombo.Items.Clear();
+                                });
+            var knownFolders = portal.GetKnownFoldersAsync().Result;
+            List<string> folderlist = knownFolders.Folders;
+
+            foreach (var folder in folderlist)
+            {
+                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                 () =>
+                                 {
+
+                                     KnownFoldersCombo.Items.Add(folder);
+
+                                 });
+            }
+        }
+
+
+        public static bool UploadComplete;
+        private async void UploadFilebtn_Click(object sender, RoutedEventArgs e)
+        {
+            UploadComplete = false;
+            ProgRingFiles.IsEnabled = true;
+            ProgRingFiles.IsActive = true;
+            ProgBorder.Visibility = Visibility.Visible;
+            ProgressText.Visibility = Visibility.Visible;
+            FileListView.IsHitTestVisible = false;
+            FileListView.IsEnabled = false;
+            ProgressText.Text = "Processing..";
+            FileRPanel.IsHitTestVisible = false;
+            try
+            {
+                FileOpenPicker uploadfiles = new FileOpenPicker();
+                uploadfiles.SuggestedStartLocation = PickerLocationId.ComputerFolder;
+                uploadfiles.FileTypeFilter.Add("*");
+                var selectedFiles = await uploadfiles.PickSingleFileAsync();
+                if (selectedFiles == null)
+                {
+                    ProgRingFiles.IsEnabled = false;
+                    ProgRingFiles.IsActive = false;
+                    ProgBorder.Visibility = Visibility.Collapsed;
+                    ProgressText.Visibility = Visibility.Collapsed;
+                    FileRPanel.IsHitTestVisible = true;
+                    FileListView.IsHitTestVisible = true;
+                    FileListView.IsEnabled = true;
+                }
+                else
+                {
+                    ProgressText.Text = $"Uploading {selectedFiles.Name}..";
+                    Task TransferTask = new Task(async () =>
+                    {
+                        try
+                        {
+                            Debug.WriteLine($"Copying {selectedFiles.Path} to {ApplicationData.Current.LocalCacheFolder.Path}");
+                            var tempfile = await selectedFiles.CopyAsync(ApplicationData.Current.LocalCacheFolder, selectedFiles.Name, NameCollisionOption.GenerateUniqueName);
+                            Debug.WriteLine($"TRANSFER: {selectedKnownFolder}, {tempfile.Path}, {tempfile.Name}");
+
+                            await portal.UploadFileAsync(selectedKnownFolder, tempfile.Path);
+                            Debug.WriteLine("Task reported completed");
+                            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                     async () =>
+                                     {
+                                         ExceptionHelper.Exceptions.WDPUploadSuccess(selectedKnownFolder, portal.Address);
+                                         ProgRingFiles.IsEnabled = false;
+                                         ProgRingFiles.IsActive = false;
+                                         ProgressText.Visibility = Visibility.Collapsed;
+                                         ProgBorder.Visibility = Visibility.Collapsed;
+                                         FileListView.IsHitTestVisible = true;
+                                         FileListView.IsEnabled = true;
+                                         await tempfile.DeleteAsync();
+                                         selectedFiles = null;
+                                         uploadfiles = null;
+                                         tempfile = null;
+                                     });
+                        }
+                        catch (Exception ex)
+                        {
+                            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                     async () =>
+                                     {
+                                         Exceptions.ThrownExceptionErrorExtended(ex);
+                                     });
+                        }
+                    });
+                    Debug.WriteLine("Starting File Upload Task");
+                    TransferTask.Start();
+
+
+                    FileRPanel.IsHitTestVisible = true;
+                    UploadComplete = false;
+
+                }
+
+            }
+            catch (Exception ex)
+            {
+                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                     async () =>
+                                     {
+                                         Exceptions.ThrownExceptionErrorExtended(ex);
+                                         Debug.WriteLine(ex.Message);
+                                         ProgRingFiles.IsEnabled = false;
+                                         ProgRingFiles.IsActive = false;
+                                         FileRPanel.IsHitTestVisible = true;
+                                         ProgressText.Visibility = Visibility.Collapsed;
+                                         ProgBorder.Visibility = Visibility.Collapsed;
+                                         FileListView.IsHitTestVisible = true;
+                                         FileListView.IsEnabled = true;
+                                         UploadComplete = false;
+                                     });
+            }
+
+        }
+
+
+
+        List<string> path = new List<string>();
+        string paths { get; set; }
+        bool WasFolderSelected = false;
+        Stream testfile = null;
+        FolderContents testfolder;
+        string itemType;
+        string saveFileName;
+        Task<FolderContents> WDPFolder;
+
+        private async void FileListView_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            ProgRingFiles.IsEnabled = true;
+            ProgRingFiles.IsActive = true;
+            ProgressText.Visibility = Visibility.Visible;
+            ProgBorder.Visibility = Visibility.Visible;
+            FileListView.IsHitTestVisible = false;
+            FileListView.IsEnabled = false;
+            ProgressText.Text = "Processing..";
+            FileRPanel.IsHitTestVisible = false;
+            if (itemId != null)
+            {
+                if (WasFolderSelected == true)
+                {
+
+                }
+                else
+                {
+
+                    Debug.WriteLine("Fixing path");
+                    string oldpaths = paths;
+                    paths = oldpaths.Replace($"\\{itemId}", "");
+
+                }
+            }
+            if (testfile != null)
+            {
+                await testfile.FlushAsync();
+                testfile = null;
+            }
+
+
+
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                 () =>
+                                 {
+                                     var value = FileListView.SelectedIndex;
+                                     Debug.WriteLine((FileListView.SelectedItem as FolderInfo).ListViewFileSizeType);
+                                     itemType = (FileListView.SelectedItem as FolderInfo).ListViewFileSizeType;
+                                     itemId = (e.ClickedItem as FolderInfo).ListViewFileName;
+                                     path.Add(itemId);
+                                     FilesHeader.Text += $"\\{itemId}";
+                                     paths += $"\\{itemId}";
+                                     Debug.WriteLine($"{paths}, {itemId}");
+                                 });
+            // await Task.Run(async () =>
+            //{
+            Debug.WriteLine("Testing if folder or file\n");
+            if (selectedKnownFolder == "LocalAppData")
+            {
+
+                if (itemType.Contains("Folder"))
+                {
+                    testfolder = await portal.GetFolderContentsAsync(selectedKnownFolder, paths, SelectedPkgFullName);
+                }
+                else
+                {
+
+                    WasFolderSelected = false;
+                    Debug.WriteLine("Fixing path");
+                    string oldpaths = paths;
+                    paths = oldpaths.Replace($"\\{itemId}", "");
+                    Debug.WriteLine($"{selectedKnownFolder}, {itemId}, {paths}, {SelectedPkgFullName}");
+                    ProgressText.Text = $"Downloading {itemId}";
+                    testfile = await portal.GetFileAsync(selectedKnownFolder, itemId, paths, SelectedPkgFullName);
+                }
+            }
+            else
+            {
+                if (itemType.Contains("Folder"))
+                {
+                    testfolder = await portal.GetFolderContentsAsync(selectedKnownFolder, paths);
+                }
+                else
+                {
+                    await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                    async () =>
+                    {
+                        ProgressText.Text = $"Downloading {itemId}";
+                        Debug.WriteLine("It's a File!\n");
+
+                        StackPanel panel = new StackPanel();
+
+                        TextBlock nameHeader = new TextBlock();
+                        nameHeader.Margin = new Thickness(5, 5, 5, 5);
+                        nameHeader.Text = "Enter file name";
+                        nameHeader.HorizontalAlignment = HorizontalAlignment.Stretch;
+                        TextBox fileNameUser = new TextBox();
+                        fileNameUser.PlaceholderText = "Enter a File Name";
+                        fileNameUser.Margin = new Thickness(5, 5, 5, 5);
+                        fileNameUser.Text = itemId;
+                        fileNameUser.Height = 40;
+                        fileNameUser.VerticalAlignment = VerticalAlignment.Center;
+                        panel.Children.Add(nameHeader);
+                        panel.Children.Add(fileNameUser);
+                        ContentDialog dialog = new ContentDialog();
+                        dialog.Content = panel;
+                        dialog.Height = 200;
+                        dialog.VerticalContentAlignment = VerticalAlignment.Center;
+                        dialog.IsSecondaryButtonEnabled = true;
+                        dialog.PrimaryButtonText = "Confirm";
+                        dialog.PrimaryButtonClick += Dialog_PrimaryButtonClick;
+                        dialog.SecondaryButtonText = "Cancel";
+                        dialog.SecondaryButtonClick += Dialog_SecondaryButtonClick;
+
+
+                        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+                        {
+                            if (fileNameUser.Text == "")
+                            {
+                                fileNameUser.BorderBrush = new SolidColorBrush(Windows.UI.Colors.Red);
+                            }
+                            else
+                            {
+                                fileNameUser.BorderBrush = new SolidColorBrush(Windows.UI.Colors.Green);
+                                saveFileName = fileNameUser.Text;
+                            }
+
+                        }
+                    });
+
+                }
+            }
+
+
+            if (!itemType.Contains("Folder"))
+            {
+
+            }
+            else
+            {
+                Debug.WriteLine("It's a Folder\n");
+                // await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                //                () =>
+                //              {
+                FileListView.ItemsSource = null;
+                //            });
+                Debug.WriteLine("Clearing List View");
+                List<FolderInfo> folderInfo = new List<FolderInfo>();
+                if (selectedKnownFolder == "LocalAppData")
+                {
+                    WDPFolder = portal.GetFolderContentsAsync(selectedKnownFolder, paths, SelectedPkgFullName);
+                }
+                else
+                {
+                    Debug.WriteLine("Fetching folder contents");
+                    await Task.Run(() =>
+                    {
+                        WDPFolder = portal.GetFolderContentsAsync(selectedKnownFolder, paths);
+                    });
+                }
+                var result = WDPFolder.Result;
+                Debug.WriteLine("Cheching for folder contents");
+                foreach (var item in result.Contents)
+                {
+                    Debug.WriteLine(item.Name + "\n" + item.Type);
+
+                    folderInfo.Add(new FolderInfo
+                    {
+                        ListViewFileName = item.Name,
+                        ListViewFileSizeType = $"{item.SizeInBytes.ToFileSize().ToString()}  {FindFileFolderAttribute(item.Type)}",
+                        ListViewFileIcon = CommonFileIcons.IconFromExtention(item.Name)
+                    });
+
+                }
+
+                //  await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                //                  () =>
+                //                 {
+                FileListView.ItemsSource = folderInfo;
+                //               });
+                WasFolderSelected = true;
+
+            }
+            // });
+            ProgRingFiles.IsEnabled = false;
+            ProgRingFiles.IsActive = false;
+            ProgressText.Visibility = Visibility.Collapsed;
+            ProgBorder.Visibility = Visibility.Collapsed;
+
+            FileRPanel.IsHitTestVisible = true;
+            FileListView.IsHitTestVisible = true;
+            FileListView.IsEnabled = true;
+        }
+
+        private void Dialog_SecondaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            FilesHeader.Text = "";
+            FileListView.IsHitTestVisible = true;
+            FileListView.IsEnabled = true;
+        }
+
+        private async void Dialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+
+            ProgRingFiles.IsEnabled = true;
+            ProgRingFiles.IsActive = true;
+            ProgressText.Visibility = Visibility.Visible;
+            ProgBorder.Visibility = Visibility.Visible;
+
+            ProgressText.Text = "Processing..";
+            FolderPicker saveFolder = new FolderPicker();
+            saveFolder.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+            saveFolder.FileTypeFilter.Add("*");
+            StorageFolder SelectedFolder = await saveFolder.PickSingleFolderAsync();
+            if (SelectedFolder == null)
+            {
+                ProgRingFiles.IsEnabled = false;
+                ProgRingFiles.IsActive = false;
+                ProgressText.Visibility = Visibility.Collapsed;
+                ProgBorder.Visibility = Visibility.Collapsed;
+                FileListView.IsHitTestVisible = true;
+                FileListView.IsEnabled = true;
+                return;
+
+            }
+
+            try
+            {
+                ProgressText.Text = $"Downloading {saveFileName}";
+                Debug.WriteLine("Getting remote file");
+                testfile = await portal.GetFileAsync(selectedKnownFolder, paths);
+                Debug.WriteLine("Getting local storage file");
+                StorageFile SavedStorageFile = await SelectedFolder.CreateFileAsync(saveFileName, CreationCollisionOption.GenerateUniqueName);
+                var output = await SavedStorageFile.OpenStreamForWriteAsync();
+                Debug.WriteLine($"Copying data");
+                await testfile.CopyToAsync(output);
+                output.Dispose();
+                FilesHeader.Text = "";
+                ExceptionHelper.Exceptions.WDPSuccessDownload(saveFileName, SelectedFolder.Path);
+                Debug.WriteLine("Copying file complete");
+                FileRPanel.IsHitTestVisible = true;
+                // SavedStorageFile = null;
+            }
+            catch (Exception ex)
+            {
+                FileRPanel.IsHitTestVisible = true;
+                FilesHeader.Text = "";
+                ExceptionHelper.Exceptions.WDPDownloadFail(saveFileName, SelectedFolder.Path, ex);
+                Debug.WriteLine("Copying file failed");
+            }
+            ProgRingFiles.IsEnabled = false;
+            ProgRingFiles.IsActive = false;
+            ProgressText.Visibility = Visibility.Collapsed;
+            ProgBorder.Visibility = Visibility.Collapsed;
+            FileListView.IsHitTestVisible = true;
+            FileListView.IsEnabled = true;
+        }
+
+        private class FileOrFolder
+        {
+            public string PackageName { get; set; }
+            public bool Folder { get; set; }
+        }
+
+        private async void KnownFoldersCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ProgRingFiles.IsEnabled = true;
+            ProgRingFiles.IsActive = true;
+            ProgressText.Visibility = Visibility.Visible;
+            ProgressText.Text = "Processing..";
+            FilesHeader.Text = "";
+            selectedKnownFolder = (sender as ComboBox).SelectedItem.ToString();
+
+
+            if (selectedKnownFolder != null)
+            {
+                List<FolderInfo> folderInfo = new List<FolderInfo>();
+                if (selectedKnownFolder == "LocalAppData")
+                {
+                    AppNamesCombo.Visibility = Visibility.Visible;
+                    AppNamesCombo.IsEnabled = true;
+                }
+                else
+                {
+                    AppNamesCombo.IsEnabled = false;
+                    AppNamesCombo.Visibility = Visibility.Collapsed;
+                    folderContents = await portal.GetFolderContentsAsync(selectedKnownFolder);
+
+
+                    foreach (var item in folderContents.Contents)
+                    {
+                        if (FindFileFolderAttribute(item.Type).Contains("Folder"))
+                        {
+
+
+
+                            folderInfo.Add(new FolderInfo
+                            {
+                                ListViewFileName = item.Name,
+                                ListViewFileSizeType = $"{FindFileFolderAttribute(item.Type)}",
+
+                                ListViewFileIcon = new BitmapImage(new Uri("ms-appx:///mimetypes/folder.png"))
+                            });
+                        }
+                        else
+                        {
+
+                            folderInfo.Add(new FolderInfo
+                            {
+                                ListViewFileName = item.Name,
+                                ListViewFileSizeType = $"{item.SizeInBytes.ToFileSize().ToString()}  {FindFileFolderAttribute(item.Type)}",
+                                ListViewFileIcon = CommonFileIcons.IconFromExtention(item.Name)
+                            });
+                        }
+
+                    }
+
+                }
+
+                FileListView.ItemsSource = folderInfo;
+
+            }
+
+            ProgRingFiles.IsEnabled = false;
+            ProgRingFiles.IsActive = false;
+            ProgressText.Visibility = Visibility.Collapsed;
+
+            UploadFilebtn.IsEnabled = true;
+            UpFolderFilebtn.IsEnabled = true;
+
+        }
+
+        string SelectedPkgFullName;
+        private async void AppNamesCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ProgRingFiles.IsEnabled = true;
+            ProgRingFiles.IsActive = true;
+            ProgressText.Visibility = Visibility.Visible;
+            ProgressText.Text = "Processing..";
+            SelectedPkgFullName = (sender as ComboBox).SelectedItem.ToString();
+
+            try
+            {
+                folderContents = await portal.GetFolderContentsAsync("LocalAppData", "", SelectedPkgFullName);
+                List<FolderInfo> folderInfo = new List<FolderInfo>();
+                foreach (var item in folderContents.Contents)
+                {
+
+                    folderInfo.Add(new FolderInfo
+                    {
+                        ListViewFileName = item.Name,
+                        ListViewFileSizeType = $"{item.SizeInBytes.ToFileSize().ToString()}  {FindFileFolderAttribute(item.Type)}"
+                    });
+
+                }
+
+                FileListView.ItemsSource = folderInfo;
+
+            }
+            catch (Exception ex)
+            {
+                ExceptionHelper.Exceptions.WDPLocalAppDataError(SelectedPkgFullName);
+            }
+            ProgRingFiles.IsEnabled = false;
+            ProgRingFiles.IsActive = false;
+            ProgressText.Visibility = Visibility.Collapsed;
+
+        }
+
+
+
+        private async void UpFolderFilebtn_Click(object sender, RoutedEventArgs e)
+        {
+            ProgRingFiles.IsEnabled = true;
+            ProgRingFiles.IsActive = true;
+            ProgressText.Visibility = Visibility.Visible;
+            ProgressText.Text = "Processing..";
+            FilesHeader.Text = "";
+            if (selectedKnownFolder == "LocalAppData")
+            {
+                folderContents = await portal.GetFolderContentsAsync("LocalAppData", "", SelectedPkgFullName);
+            }
+            else
+            {
+                folderContents = await portal.GetFolderContentsAsync(selectedKnownFolder);
+            }
+            List<FolderInfo> folderInfo = new List<FolderInfo>();
+            foreach (var item in folderContents.Contents)
+            {
+                if (FindFileFolderAttribute(item.Type).Contains("Folder"))
+                {
+
+
+
+                    folderInfo.Add(new FolderInfo
+                    {
+                        ListViewFileName = item.Name,
+                        ListViewFileSizeType = $"{FindFileFolderAttribute(item.Type)}",
+
+                        ListViewFileIcon = new BitmapImage(new Uri("ms-appx:///mimetypes/folder.png"))
+                    });
+                }
+                else
+                {
+
+                    folderInfo.Add(new FolderInfo
+                    {
+                        ListViewFileName = item.Name,
+                        ListViewFileSizeType = $"{item.SizeInBytes.ToFileSize().ToString()}  {FindFileFolderAttribute(item.Type)}",
+                        ListViewFileIcon = CommonFileIcons.IconFromExtention(item.Name)
+                    });
+                }
+            }
+
+            FileListView.ItemsSource = folderInfo;
+            WasFolderSelected = false;
+            paths = "";
+            ProgRingFiles.IsEnabled = false;
+            ProgRingFiles.IsActive = false;
+            ProgressText.Visibility = Visibility.Collapsed;
+        }
+
+        public string FindFileFolderAttribute(int type)
+        {
+            switch (type)
+            {
+                case 32:
+                    return "File";
+                case 2048:
+                    return "File";
+                case 64:
+                    return "Reserved";
+                case 16:
+                    return "Folder";
+                case 2:
+                    return "Hidden File";
+                case 32768:
+                    return "Not Supported";
+                case 128:
+                    return "File";
+                case 8192:
+                    return "Non-Indexed File";
+                case 131072:
+                    return "Not Supported";
+                case 4096:
+                    return "File (Offline)";
+                case 1:
+                    return "File";
+                case 1024:
+                    return "Shortcut";
+                case 4:
+                    return "System File";
+                default:
+                    return "File";
+            }
+        }
+
+        private void ProcessesPivot_Loaded(object sender, RoutedEventArgs e)
+        {
+            processesListView.IsEnabled = true;
+        }
+
+        #endregion
+
+
+        private void ProcessesPivot_Unloaded(object sender, RoutedEventArgs e)
+        {
+            processesListView.IsEnabled = false;
+        }
+
+
+
+
+        #region CrashDumps
+
+        private async void GetCrashDumpConfig(int i)
+        {
+            DumpFileSettings test = await portal.GetDumpFileSettingsAsync();
+            dumpType = test.DumpType;
+            autoreboot = test.AutoReboot;
+            maxDumpCount = test.MaxDumpCount;
+            overwriteDump = test.Overwrite;
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                   () =>
+                   {
+                       switch (dumpType)
+                       {
+                           case DumpFileSettings.DumpTypes.Disabled:
+                               IsCrashDumpEnabled = false;
+                               AutoRebootTog.IsEnabled = false;
+                               OverwriteDumpTog.IsEnabled = false;
+                               MaxDumpSlider.IsEnabled = false;
+                               DumpDisabledItem.IsSelected = true;
+                               DumpTypeCombo.SelectedIndex = 0;
+                               break;
+                           case DumpFileSettings.DumpTypes.CompleteMemoryDump:
+                               IsCrashDumpEnabled = true;
+                               DumpCompleteItem.IsSelected = true;
+                               DumpTypeCombo.SelectedIndex = 1;
+                               MaxDumpSlider.Value = maxDumpCount;
+                               AutoRebootTog.IsOn = autoreboot;
+                               OverwriteDumpTog.IsOn = overwriteDump;
+                               AutoRebootTog.IsEnabled = true;
+                               OverwriteDumpTog.IsEnabled = true;
+                               MaxDumpSlider.IsEnabled = true;
+                               break;
+                           case DumpFileSettings.DumpTypes.KernelDump:
+                               IsCrashDumpEnabled = true;
+                               DumpKernelItem.IsSelected = true;
+                               DumpTypeCombo.SelectedIndex = 2;
+                               MaxDumpSlider.Value = maxDumpCount;
+                               AutoRebootTog.IsOn = autoreboot;
+                               OverwriteDumpTog.IsOn = overwriteDump;
+                               AutoRebootTog.IsEnabled = true;
+                               OverwriteDumpTog.IsEnabled = true;
+                               MaxDumpSlider.IsEnabled = true;
+                               break;
+                           case DumpFileSettings.DumpTypes.Minidump:
+                               IsCrashDumpEnabled = true;
+                               DumpMiniItem.IsSelected = true;
+                               DumpTypeCombo.SelectedIndex = 3;
+                               MaxDumpSlider.Value = maxDumpCount;
+                               AutoRebootTog.IsOn = autoreboot;
+                               OverwriteDumpTog.IsOn = overwriteDump;
+                               AutoRebootTog.IsEnabled = true;
+                               OverwriteDumpTog.IsEnabled = true;
+                               MaxDumpSlider.IsEnabled = true;
+                               break;
+                           default:
+                               IsCrashDumpEnabled = false;
+                               AutoRebootTog.IsEnabled = false;
+                               OverwriteDumpTog.IsEnabled = false;
+                               MaxDumpSlider.IsEnabled = false;
+                               DumpDisabledItem.IsSelected = true;
+                               DumpTypeCombo.SelectedIndex = 0;
+
+                               break;
+                       }
+
+
+
+
+                   });
+
+
+        }
+
+        private async void MaxDumpSlider_ValueChanged(object sender, Windows.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+        {
+            if (FinishedLoadingData == false)
+            {
+
+            }
+            else
+            {
+                DumpFileSettings fileSettings = new DumpFileSettings();
+                fileSettings.MaxDumpCount = (int)MaxDumpSlider.Value;
+                fileSettings.Overwrite = overwriteDump;
+                fileSettings.AutoReboot = autoreboot;
+                fileSettings.DumpType = dumpType;
+                await portal.SetDumpFileSettingsAsync(fileSettings);
+            }
+        }
+
+        private async void OverwriteDumpTog_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (FinishedLoadingData == false)
+            {
+
+            }
+            else
+            {
+                DumpFileSettings fileSettings = new DumpFileSettings();
+                if (OverwriteDumpTog.IsOn)
+                {
+                    fileSettings.Overwrite = true;
+                    fileSettings.AutoReboot = autoreboot;
+                    fileSettings.MaxDumpCount = maxDumpCount;
+                    fileSettings.DumpType = dumpType;
+                    await portal.SetDumpFileSettingsAsync(fileSettings);
+                }
+                else
+                {
+                    fileSettings.Overwrite = false;
+                    fileSettings.AutoReboot = autoreboot;
+                    fileSettings.MaxDumpCount = maxDumpCount;
+                    fileSettings.DumpType = dumpType;
+                    await portal.SetDumpFileSettingsAsync(fileSettings);
+                }
+            }
+
+        }
+
+        private async void AutoRebootTog_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (FinishedLoadingData == false)
+            {
+
+            }
+            else
+            {
+                DumpFileSettings fileSettings = new DumpFileSettings();
+                if (AutoRebootTog.IsOn)
+                {
+                    fileSettings.AutoReboot = true;
+                    fileSettings.MaxDumpCount = maxDumpCount;
+                    fileSettings.DumpType = dumpType;
+                    fileSettings.Overwrite = overwriteDump;
+                    await portal.SetDumpFileSettingsAsync(fileSettings);
+                }
+                else
+                {
+                    fileSettings.AutoReboot = true;
+                    fileSettings.MaxDumpCount = maxDumpCount;
+                    fileSettings.DumpType = dumpType;
+                    fileSettings.Overwrite = overwriteDump;
+                    await portal.SetDumpFileSettingsAsync(fileSettings);
+
+                }
+            }
+        }
+
+        int driveType;
+        private async void DumpTypeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (FinishedLoadingData == false)
+            {
+
+            }
+            else
+            {
+                DumpFileSettings fileSettings = new DumpFileSettings();
+                switch (DumpTypeCombo.SelectedIndex)
+                {
+                    case 0:
+                        driveType = 0;
+                        fileSettings.Overwrite = overwriteDump;
+                        fileSettings.AutoReboot = autoreboot;
+                        fileSettings.MaxDumpCount = maxDumpCount;
+                        fileSettings.DumpType = DumpFileSettings.DumpTypes.Disabled;
+                        await portal.SetDumpFileSettingsAsync(fileSettings);
+                        break;
+
+                    case 1:
+                        driveType = 1;
+                        fileSettings.Overwrite = overwriteDump;
+                        fileSettings.AutoReboot = autoreboot;
+                        fileSettings.MaxDumpCount = maxDumpCount;
+                        fileSettings.DumpType = DumpFileSettings.DumpTypes.CompleteMemoryDump;
+                        await portal.SetDumpFileSettingsAsync(fileSettings);
+                        break;
+
+                    case 2:
+                        driveType = 2;
+                        fileSettings.Overwrite = overwriteDump;
+                        fileSettings.AutoReboot = autoreboot;
+                        fileSettings.MaxDumpCount = maxDumpCount;
+                        fileSettings.DumpType = DumpFileSettings.DumpTypes.KernelDump;
+                        await portal.SetDumpFileSettingsAsync(fileSettings);
+                        break;
+
+                    case 3:
+                        driveType = 3;
+                        fileSettings.Overwrite = overwriteDump;
+                        fileSettings.AutoReboot = autoreboot;
+                        fileSettings.MaxDumpCount = maxDumpCount;
+                        fileSettings.DumpType = DumpFileSettings.DumpTypes.Minidump;
+                        await portal.SetDumpFileSettingsAsync(fileSettings);
+                        break;
+                }
+                GetCrashDumpConfig(driveType);
+            }
+        }
+        bool CheckingDumpStatus = false;
+        string SelectedDumpPkg;
+        private async void CrashDumpAppCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            CheckingDumpStatus = true;
+            CrashDumpAppCheck.IsChecked = false;
+            DumpsListView.ItemsSource = null;
+            Debug.WriteLine((sender as ComboBox).SelectedItem.ToString());
+            SelectedDumpPkg = (sender as ComboBox).SelectedItem.ToString();
+
+            var appSettings = await portal.GetAppCrashDumpSettingsAsync(SelectedDumpPkg);
+            var isenabled = appSettings.CrashDumpEnabled;
+            CrashDumpAppCheck.IsChecked = isenabled;
+            CheckingDumpStatus = false;
+        }
+
+        private async void CrashDumpAppCheck_Checked(object sender, RoutedEventArgs e)
+        {
+            if (CheckingDumpStatus == false)
+                await portal.SetAppCrashDumpSettingsAsync(SelectedDumpPkg, true);
+        }
+
+        private async void CrashDumpAppCheck_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (CheckingDumpStatus == false)
+                await portal.SetAppCrashDumpSettingsAsync(SelectedDumpPkg, false);
+        }
+
+        private async void FetchCrashDumpFiles_Click(object sender, RoutedEventArgs e)
+        {
+
+            RefreshDumpListView();
+        }
+
+
+        public async void RefreshDumpListView()
+        {
+
+            List<AppCrashDumpSettings> dumpSettings = new List<AppCrashDumpSettings>();
+            var dmpFiles = await portal.GetAppCrashDumpListAsync();
+            foreach (var item in dmpFiles)
+            {
+
+                if (item.PackageFullName == SelectedDumpPkg)
+                {
+
+                    dumpSettings.Add(new AppCrashDumpSettings
+                    {
+                        FileName = item.Filename,
+                        //FileDate = item.FileDateAsString,
+                        FileSizeAndDate = $"{((long)item.FileSizeInBytes).ToFileSize()} | {item.FileDateAsString}",
+                        PackageFullName = item.PackageFullName,
+                        CrashDump = item
+
+                    });
+                }
+                else
+                {
+
+                }
+                Debug.WriteLine($"Dump App: {item.PackageFullName}");
+
+                DumpsListView.ItemsSource = dumpSettings;
+            }
+        }
+
+        public class AppCrashDumpSettings
+        {
+            //public string FileDate { get; set; }
+            public string FileName { get; set; }
+            public string FileSizeAndDate { get; set; }
+            public string PackageFullName { get; set; }
+            public AppCrashDump CrashDump { get; set; }
+        }
+        int ClickedIndexItem;
+        AppCrashDump ClickedIndexSettings;
+        private async void ListBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ClickedIndexItem = 0;
+            ClickedIndexSettings = null;
+
+            var item = (sender as FrameworkElement).DataContext;
+            ClickedIndexItem = DumpsListView.Items.IndexOf(item);
+            DumpsListView.SelectedIndex = ClickedIndexItem;
+            ClickedIndexSettings = (DumpsListView.SelectedItem as MainPage.AppCrashDumpSettings).CrashDump;
+
+            StackPanel Panel = new StackPanel();
+
+            TextBlock nameHeader = new TextBlock();
+            nameHeader.Margin = new Thickness(5, 5, 5, 5);
+            nameHeader.Text = $"\nDelete crash dump?\n\n{ (DumpsListView.SelectedItem as MainPage.AppCrashDumpSettings).FileName}";
+            nameHeader.HorizontalAlignment = HorizontalAlignment.Stretch;
+
+
+            Panel.Children.Add(nameHeader);
+
+            ContentDialog dialog = new ContentDialog();
+            dialog.Content = Panel;
+            dialog.VerticalContentAlignment = VerticalAlignment.Center;
+            dialog.IsSecondaryButtonEnabled = true;
+            dialog.PrimaryButtonText = "Confirm";
+            dialog.PrimaryButtonClick += Dialog_PrimaryButtonClick1;
+            dialog.SecondaryButtonText = "Cancel";
+            dialog.SecondaryButtonClick += Dialog_SecondaryButtonClick1;
+
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+
+
+            }
+
+
+
+
+
+
+        }
+
+        private void Dialog_SecondaryButtonClick1(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            return;
+        }
+
+        private async void Dialog_PrimaryButtonClick1(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            await portal.DeleteAppCrashDumpAsync(ClickedIndexSettings);
+            RefreshDumpListView();
+
+        }
+
+        string ClickedListViewItem;
+        private async void DumpsListView_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            var test = (AppCrashDumpSettings)e.ClickedItem;
+            //var item = (sender as AppCrashDumpSettings).FileName;
+            // string name = (DumpsListView.SelectedItem as MainPage.AppCrashDumpSettings).FileName;
+            ClickedListViewItem = test.FileName;
+            ClickedIndexSettings = test.CrashDump;
+            StackPanel Panel = new StackPanel();
+
+            TextBlock nameHeader = new TextBlock();
+            nameHeader.Margin = new Thickness(5, 5, 5, 5);
+            nameHeader.Text = $"\nDownload Crash Dump?\n\n{test.FileName}";
+            nameHeader.HorizontalAlignment = HorizontalAlignment.Stretch;
+
+
+            Panel.Children.Add(nameHeader);
+
+            ContentDialog dialog = new ContentDialog();
+            dialog.Content = Panel;
+            dialog.VerticalContentAlignment = VerticalAlignment.Center;
+            dialog.IsSecondaryButtonEnabled = true;
+            dialog.PrimaryButtonText = "Confirm";
+            dialog.PrimaryButtonClick += Dialog_PrimaryButtonClick2;
+            dialog.SecondaryButtonText = "Cancel";
+            dialog.SecondaryButtonClick += Dialog_SecondaryButtonClick2;
+
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+
+
+            }
+
+        }
+
+        private void Dialog_SecondaryButtonClick2(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            return;
+        }
+
+        private async void Dialog_PrimaryButtonClick2(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            try
+            {
+
+                var dmp = await portal.GetAppCrashDumpAsync(ClickedIndexSettings);
+
+
+                FolderPicker picker = new FolderPicker();
+                picker.FileTypeFilter.Add(".dmp");
+                StorageFolder folder = await picker.PickSingleFolderAsync();
+                StorageFile file = await folder.CreateFileAsync(ClickedListViewItem, CreationCollisionOption.ReplaceExisting);
+                Stream outstream = await file.OpenStreamForWriteAsync();
+                Debug.WriteLine("Downloading data " + dmp.Length);
+
+                await dmp.CopyToAsync(outstream);
+
+                await outstream.FlushAsync();
+                outstream.Dispose();
+                dmp.Dispose();
+                var success = new MessageDialog("Successfully saved to " + file.Path);
+                success.Commands.Add(new UICommand("Close"));
+                await success.ShowAsync();
+
+
+
+
+            }
+            catch (Exception ex)
+            {
+                ExceptionHelper.Exceptions.ThrownExceptionErrorExtended(ex);
+            }
+        }
+
+
+
+        #endregion
+
+
+        #region Wifi
+
+        WifiInterfaces WifiInterfaces { get; set; }
+        private async void FetchWifiInformation()
+        {
+            var access = await Windows.Devices.WiFi.WiFiAdapter.RequestAccessAsync();
+
+            if (access == Windows.Devices.WiFi.WiFiAccessStatus.Allowed)
+            {
+                var uwpAdapters = await Windows.Devices.Enumeration.DeviceInformation.FindAllAsync(Windows.Devices.WiFi.WiFiAdapter.GetDeviceSelector());
+                Debug.WriteLine("Allowed Wifi Control");
+                foreach (var adapter in uwpAdapters)
+                {
+                    Debug.WriteLine($"{adapter.Name} | {adapter.IsDefault} | {adapter.IsEnabled}");
+                }
+            }
+            WifiInterfaces = await portal.GetWifiInterfacesAsync();
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                   () =>
+                   {
+                       foreach (var device in WifiInterfaces.Interfaces)
+                       {
+
+                           WifiAdaptersCombo.Items.Add(device.Description);
+
+                       }
+                       if (WifiAdaptersCombo.Items.Count == 1)
+                       {
+                           WifiAdaptersCombo.SelectedIndex = 0;
+                       }
+                   });
+
+
+        }
+
+
+
+
+        private async void GetInterfaceInfo(WifiInterface device)
+        {
+
+
+            foreach (var item in device.Profiles)
+            {
+                AdapterInfoText.Text +=
+                    $"Profile: {item.Name} | {item.IsPerUserProfile} | {item.IsGroupPolicyProfile}";
+            }
+        }
+        Guid deviceGUID { get; set; }
+        string ConnectedNetwork { get; set; }
+        private async void WifiAdaptersCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+
+            RefreshNetworkList();
+        }
+
+
+
+        private async void RefreshNetworkList()
+        {
+            try
+            {
+                NetworkProgress.IsIndeterminate = true;
+                List<WifiNetworlInfo> availableNetworks = new List<WifiNetworlInfo>();
+                List<WifiNetworlInfo> connectedNetworks = new List<WifiNetworlInfo>();
+
+                foreach (var device in WifiInterfaces.Interfaces)
+                {
+                    var deviceDescription = device.Description;
+                    deviceGUID = device.Guid;
+                    var deviceProfiles = device.Profiles;
+
+                    // var netType = Windows.Networking.Connectivity.NetworkInformation.GetInternetConnectionProfile();
+
+                    // var uwpNetGUID = netType.NetworkAdapter.NetworkAdapterId;
+
+                    if (WifiAdaptersCombo.SelectedItem.ToString() == deviceDescription)
+                    {
+
+                        await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                       () =>
+                       {
+                           AdapterInfoText.Text =
+                            $"GUID: {deviceGUID}";
+
+
+                       });
+
+                        var networks = await portal.GetWifiNetworksAsync(deviceGUID);
+                        foreach (var item in networks.AvailableNetworks)
+                        {
+
+                            if (item.IsConnected == true)
+                            {
+                                connectedNetworks.Add(new WifiNetworlInfo
+                                {
+                                    SSID = item.Ssid,
+                                    AuthenticationType = item.AuthenticationAlgorithm,
+                                    ProfileName = item.ProfileName,
+                                    IsConnectable = item.IsConnectable,
+                                    IsConnected = item.IsConnected,
+                                    Channel = item.Channel,
+                                    CombinedInfo =
+                                $"Profile Name: {item.ProfileName}\n" +
+                                $"Auth: {item.AuthenticationAlgorithm}\n" +
+                                $"Channel: {item.Channel}\n" +
+                                $"Strength: {item.SignalQuality}\n",
+                                    SignalImage = CheckSignalStrength(item.SignalQuality)
+                                });
+                            }
+                            else
+                            {
+
+
+                                availableNetworks.Add(new WifiNetworlInfo
+                                {
+                                    SSID = item.Ssid,
+                                    AuthenticationType = item.AuthenticationAlgorithm,
+                                    ProfileName = item.ProfileName,
+                                    IsConnectable = item.IsConnectable,
+                                    IsConnected = item.IsConnected,
+                                    Channel = item.Channel,
+                                    CombinedInfo =
+                                    $"Profile Name: {item.ProfileName}\n" +
+                                    $"Auth: {item.AuthenticationAlgorithm}\n" +
+                                    $"Channel: {item.Channel}\n" +
+                                    $"Strength: {item.SignalQuality}\n",
+                                    SignalImage = CheckSignalStrength(item.SignalQuality)
+
+                                });
+                            }
+
+
+                        }
+
+                        WifiNetworksListView.ItemsSource = availableNetworks;
+                        CurrentlyConnectedInfo.ItemsSource = connectedNetworks;
+                        if (CurrentlyConnectedInfo.Items.Count != 0)
+                        {
+                            CurrentlyConnectedInfo.SelectedIndex = 0;
+                        }
+                        NetworkProgress.IsIndeterminate = false;
+
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                   () =>
+                   {
+                       NetworkProgress.IsIndeterminate = false;
+                       Exceptions.CustomException($"Please make sure WiFi is enabled in Device Settings.\n\n{ex.Message}\n{ex.StackTrace}");
+                       //Exceptions.ThrownExceptionErrorExtended(ex);
+                   });
+            }
+        }
+
+
+        private class WifiNetworlInfo
+        {
+            public string SSID { get; set; }
+            public string AuthenticationType { get; set; }
+            public string ProfileName { get; set; }
+            public bool IsConnectable { get; set; }
+            public bool IsConnected { get; set; }
+            public int Channel { get; set; }
+            public string CombinedInfo { get; set; }
+            public BitmapImage SignalImage { get; set; }
+        }
+
+
+
+
+        string ClickedNetwork { get; set; }
+        string TempPassword { get; set; }
+        private async void WifiNetworksListView_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            NetworkProgress.IsIndeterminate = true;
+            var clickedItem = (e.ClickedItem as WifiNetworlInfo);
+            Debug.WriteLine($"Item Clicked: {clickedItem.SSID}");
+            ClickedNetwork = clickedItem.SSID;
+
+            List<string> retrievedDetails = CheckForCredentials(ClickedNetwork);
+            if (retrievedDetails != null)
+            {
+                await portal.ConnectToWifiNetworkAsync(deviceGUID, ClickedNetwork, retrievedDetails[1]);
+                RefreshNetworkList();
+                retrievedDetails.Clear();
+                retrievedDetails = null;
+                NetworkProgress.IsIndeterminate = false;
+            }
+            else
+            {
+
+
+
+                StackPanel Panel = new StackPanel();
+
+                TextBlock nameHeader = new TextBlock();
+                nameHeader.Margin = new Thickness(5, 5, 5, 5);
+                nameHeader.Text = $"Connect to {clickedItem.SSID}?";
+                nameHeader.HorizontalAlignment = HorizontalAlignment.Stretch;
+                PasswordBox password = new PasswordBox();
+                password.Margin = new Thickness(5, 5, 5, 5);
+                password.PlaceholderText = "Enter password";
+                password.HorizontalAlignment = HorizontalAlignment.Stretch;
+                Panel.Children.Add(nameHeader);
+                Panel.Children.Add(password);
+                ContentDialog dialog = new ContentDialog();
+                dialog.Content = Panel;
+                dialog.VerticalContentAlignment = VerticalAlignment.Center;
+                dialog.IsSecondaryButtonEnabled = true;
+                dialog.PrimaryButtonText = "Confirm";
+                dialog.PrimaryButtonClick += Dialog_PrimaryButtonClick3;
+                dialog.SecondaryButtonText = "Cancel";
+                dialog.SecondaryButtonClick += Dialog_SecondaryButtonClick3;
+
+                if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+                {
+
+                    if (password.Password != "")
+                    {
+                        SaveNetworkPassword(ClickedNetwork, password.Password);
+                        await portal.ConnectToWifiNetworkAsync(deviceGUID, ClickedNetwork, password.Password);
+                        RefreshNetworkList();
+                        NetworkProgress.IsIndeterminate = false;
+                    }
+                }
+            }
+
+        }
+
+        private async void Dialog_SecondaryButtonClick3(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+
+        }
+
+        private void Dialog_PrimaryButtonClick3(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            return;
+        }
+
+        public async void DisconnectNetwork()
+        {
+            try
+            {
+                Guid non = new Guid();
+                await portal.ConnectToWifiNetworkAsync(non, "", "");
+            }
+            catch (Exception ex)
+            {
+                Exceptions.ThrownExceptionErrorExtended(ex);
+            }
+        }
+
+        private void SaveNetworkPassword(string SSID, string password)
+        {
+            PasswordStore.Add(new PasswordCredential("WiFiNetworks", SSID, password));
+            Debug.WriteLine("Network Saved");
+        }
+
+        List<string> credentials { get; set; }
+        private List<string> CheckForCredentials(string SSID)
+        {
+            // PasswordStore.Retrieve("WiFiNetworks", SSID);
+            try
+            {
+                if (PasswordStore.FindAllByUserName(SSID) != null)
+                {
+                    var storedCredentials = PasswordStore.FindAllByUserName(SSID);
+                    credentials = new List<string>();
+                    foreach (var item in storedCredentials)
+                    {
+                        item.RetrievePassword();
+                        credentials.Add(item.UserName);
+                        credentials.Add(item.Password);
+                    }
+
+                    return credentials;
+
+                }
+                else
+                {
+                    credentials = null;
+                    return credentials;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                credentials = null;
+                return credentials;
+            }
+        }
+
+        private void DisconnectNetworkBtn_Click(object sender, RoutedEventArgs e)
+        {
+            DisconnectNetwork();
+        }
+
+
+        private BitmapImage CheckSignalStrength(int signal)
+        {
+            int oneBar = 35;
+            int twoBar = 70;
+            int threeBar = 100;
+
+            if (signal <= oneBar)
+            {
+                BitmapImage img = new BitmapImage(new Uri("ms-appx:///Assets/wifi-low.png"));
+                return img;
+            }
+            if (signal < twoBar && signal > oneBar)
+            {
+                BitmapImage img = new BitmapImage(new Uri("ms-appx:///Assets/wifi-mid.png"));
+                return img;
+            }
+            if (signal >= twoBar)
+            {
+                BitmapImage img = new BitmapImage(new Uri("ms-appx:///Assets/wifi-full.png"));
+                return img;
+            }
+            return null;
+
+        }
+
+        string ipAddr;
+        string ipSubnet;
+        string ipAddrGate;
+        string ipSubnetGate;
+        public async void ViewCurrentConnection()
+        {
+            IpConfiguration ipconfig = await portal.GetIpConfigAsync();
+
+            foreach (NetworkAdapterInfo adapterInfo in ipconfig.Adapters)
+            {
+                if (adapterInfo.Id == deviceGUID)
+                {
+
+                    foreach (IpAddressInfo address in adapterInfo.IpAddresses)
+                    {
+                        ipAddr = address.Address;
+                        ipSubnet = address.SubnetMask;
+                    }
+                    foreach (var gateway in adapterInfo.Gateways)
+                    {
+                        ipSubnetGate = gateway.SubnetMask;
+                        ipAddrGate = gateway.Address;
+                    }
+
+
+                    CurrentConnectionLabel.Text = adapterInfo.Description;
+                    ConnectionDetails.Text =
+                        $"IP Address: {ipAddr}\n" +
+                        $"Subnet Mask: {ipSubnet}\n" +
+                        $"Default Gateway IP: {ipAddrGate}\n" +
+                        $"Default Gateway Subnet Mask: {ipSubnetGate}\n\n" +
+                        $"MAC Address: {adapterInfo.MacAddress}\n" +
+                        $"DHCP Address: {adapterInfo.Dhcp.Address.Address}\n" +
+                        $"Adapter Type: {adapterInfo.AdapterType}";
+                }
+            }
+            ConnectionInfoWindow.Visibility = Visibility.Visible;
+
+
+        }
+
+        #endregion
+
+        private void ConnectionWindowClose_Click(object sender, RoutedEventArgs e)
+        {
+            ConnectionInfoWindow.Visibility = Visibility.Collapsed;
+            CurrentConnectionLabel.Text = "";
+            ConnectionDetails.Text = "";
+
+        }
+
+
+
+
+        public string RetrieveCapability(string cap)
+        {
+            switch (cap)
+            {
+                //StandardCapabilities
+                case "musicLibrary":
+                    return "Music Library";
+
+                case "picturesLibrary":
+                    return "Pictures Library";
+                case "videosLibrary":
+                    return "Videos Library";
+                case "removableStorage":
+                    return "Removable Storage";
+                case "internetClient":
+                    return "Internet Access";
+                case "internetClientServer":
+                    return "Internet Access (Client/Server)";
+                case "privateNetworkClientServer":
+                    return "Private Network Access";
+                case "appointments":
+                    return "Appointments Access";
+                case "appointmentsSystem":
+                    return "Appointments (System)";
+                case "contacts":
+                    return "Contacts Access";
+                case "contactsSystem":
+                    return "Access Contacts (System)";
+                case "codeGeneration":
+                    return "Code Generation";
+                case "allJoyn":
+                    return "AllJoyn Enabled";
+                case "phoneCall":
+                    return "Phone Calls";
+                case "phoneCallHistoryPublic":
+                    return "Call History (Public)";
+                case "phoneCallHistory":
+                    return "Call History";
+                case "phoneCallHistorySystem":
+                    return "Call History (System)";
+                case "recordedCallsFolder":
+                    return "Recrded Calls";
+                case "userAccountInformation":
+                    return "User Information";
+                case "voipCall":
+                    return "VOIP Calling";
+                case "objects3D":
+                    return "3D Objects Library";
+                case "chat":
+                    return "SMS/MMS Access";
+                case "blockedChatMessages":
+                    return "Read Blocked Messages";
+                case "lowLevelDevices":
+                    return "Low Level Device Management";
+                case "lowLevel":
+                    return "Low Level Management";
+                case "systemManagement":
+                    return "System Management";
+                case "backgroundMediaPlayback":
+                    return "Background Playback";
+                case "remoteSystem":
+                    return "Remote Connectivity";
+                case "spatialPerception":
+                    return "Spatial Perception";
+                case "globalMediaControl":
+                    return "Media Control";
+                case "graphicsCapture":
+                    return "Graphics Capture";
+                case "graphicsCaptureWithoutBorder":
+                    return "Graphics Capture (No Border)";
+                case "graphicsCaptureProgrammatic":
+                    return "Graphics Capture (Programmatic)";
+
+
+                //DeviceCapabilities
+                case "location":
+                    return "Location Access";
+                case "microphone":
+                    return "Microphone Access";
+                case "proximity":
+                    return "Proximity Device";
+                case "webcam":
+                    return "Webcam Access";
+                case "usb":
+                    return "USB Devices";
+                case "humaninterfacedevice":
+                    return "HID Devces";
+                case "pointOfService":
+                    return "Point of Service";
+                case "bluetooth":
+                    return "Bluetooth Control";
+                case "wiFiControl":
+                    return "Wireless Control";
+                case "radios":
+                    return "Radios Control";
+                case "optical":
+                    return "CD/DVD Access";
+                case "activity":
+                    return "Motion Detection";
+                case "serialcommunication":
+                    return "Serial Port Access";
+                case "gazeInput":
+                    return "Eye Tracking";
+
+                case "userDataTasks":
+                    return "User Data Tasks";
+                case "userNotificationListener":
+                    return "Notification Access";
+                //RestrictedCapabilities
+                case "enterpriseAuthentication":
+                    return "Enterprise Authentication";
+                case "enterpriseDataPolicy":
+                    return "Enterprise Data Policies";
+                case "sharedUserCertificates":
+                    return "Shared Certificates";
+                case "documentsLibrary":
+                    return "Documents Library";
+                case "appCaptureSettings":
+                    return "App Capture Settings";
+                case "cellularDeviceControl":
+                    return "Cellular Control";
+                case "cellularDeviceIdentity":
+                    return "Cellular Identity";
+                case "cellularMessaging":
+                    return "Cellular Messaging Access";
+                case "chatSystem":
+                    return "Chat (System)";
+                case "smsSend":
+                    return "Send/Recieve SMS";
+                case "deviceUnlock":
+                    return "Device Unlocking";
+                case "dualSimTiles":
+                    return "Dual Sim Management";
+                case "enterpriseDeviceLockdown":
+                    return "Device Lockdown";
+                case "inputInjectionBrokered":
+                    return "Input Injection";
+                case "inputObservation":
+                    return "Input Observation";
+                case "inputSuppression":
+                    return "Input Suppression";
+                case "networkingVpnProvider":
+                    return "VPN Management";
+                case "packageManagement":
+                    return "Package Management";
+                case "packageQuery":
+                    return "Package Query";
+
+
+                case "screenDuplication":
+                    return "Screen Projection";
+                case "userPrincipalName":
+                    return "UPN Info Access";
+                case "walletSystem":
+                    return "Wallet Access";
+                case "locationHistory":
+                    return "Location History";
+                case "confirmAppClose":
+                    return "Confirm App Closing";
+                case "emailSystem":
+                    return "Email Access (System)";
+                case "email":
+                    return "Email Access";
+
+
+                case "userDataSystem":
+                    return "User Data Access";
+                case "previewStore":
+                    return "App SKU Management";
+                case "firstSignInSettings":
+                    return "User Settings";
+                case "teamEditionExperience":
+                    return "Windows Teams Session *Internal API";
+                case "remotePassportAuthentication":
+                    return "Remote Credentials";
+                case "previewUiComposition":
+                    return "Preview UI APIs";
+                case "secureAssessment":
+                    return "Secure Assessment Management";
+                case "networkConnectionManagerProvisioning":
+                    return "Network Provisioning";
+                case "networkDataPlanProvisioning":
+                    return "Data Usage Provisioning";
+                case "slapiQueryLicenseValue":
+                    return "Query Software Licenses";
+                case "extendedBackgroundTaskTime":
+                    return "Extended Background Execution";
+                case "extendedExecutionBackgroundAudio":
+                    return "Background Audio";
+                case "extendedExecutionCritical":
+                    return "Extended Execution (Critical)";
+
+                case "extendedExecutionUnconstrained":
+                    return "Extended Execution (Unconstrained)";
+
+
+
+                case "packagePolicySystem":
+                    return "App System Policies";
+                case "gameList":
+                    return "Retrieve Installed Games";
+                case "xboxAccessoryManagement":
+                    return "Xbox Accessories";
+                case "cortanaSpeechAccessory":
+                    return "Cortana";
+                case "accessoryManager":
+                    return "Accessory Management";
+                case "interopServices":
+                    return "Driver Access";
+                case "inputForegroundObservation":
+                    return "Foreground Input Observation";
+                case "oemDeployment":
+                    return "OEM Deployment";
+                case "appLicensing":
+                    return "App Licensing";
+                case "storeLicenseManagement":
+                    return "Store Licensing Management";
+                case "locationSystem":
+                    return "Location Management";
+                case "userDataAccountsProvider":
+                    return "User Accounts Access";
+                case "previewPenWorkspace":
+                    return "Pen Capabilities";
+                case "secondaryAuthenticationFactor":
+                    return "Companion Authentication";
+
+                case "userSystemId":
+                    return "View System IDs";
+                case "targetedContent":
+                    return "Targeted Content";
+                case "uiAutomation":
+                    return "UI Automation";
+                case "gameBarServices":
+                    return "Game Bar Services";
+
+                case "audioDeviceConfiguration":
+                    return "Audio Hardware";
+                case "backgroundMediaRecording":
+                    return "Background Recording";
+
+                case "startScreenManagement":
+                    return "Start Screen Management";
+                case "cortanaPermissions":
+                    return "Cortana Permissions";
+                case "allAppMods":
+                    return "Mods Management";
+                case "expandedResources":
+                    return "Game Mode Access";
+                case "protectedApp":
+                    return "Protected App";
+                case "gameMonitor":
+                    return "Game Monitoring";
+                case "appDiagnostics":
+                    return "Application Diagnostics";
+                case "devicePortalProvider":
+                    return "Device Portal Provider";
+                case "enterpriseCloudSSO":
+                    return "Enterprise SSO";
+                case "backgroundVoIP":
+                    return "Background VoIP";
+                case "oneProcessVoIP":
+                    return "Exclusing VoIP";
+                case "developmentModeNetwork":
+                    return "Access Network Paths";
+                case "broadFileSystemAccess":
+                    return "Filesystem Access";
+                case "smbios":
+                    return "SMBIOS";
+                case "runFullTrust":
+                    return "Full Trust";
+                case "allowElevation":
+                    return "Allow Elevation";
+                case "teamEditionDeviceCredential":
+                    return "Windows Teams Credentials";
+                case "teamEditionView":
+                    return "Windows Teams UI";
+                case "cameraProcessingExtension":
+                    return "Camera Image Processing";
+                case "networkDataUsageManagement":
+                    return "Network Data Usage";
+                case "phoneLineTransportManagement":
+                    return "Phone Line Connectivity";
+                case "unvirtualizedResources":
+                    return "Unvirtualized Resources";
+                case "modifiableApp":
+                    return "Modifiable App";
+
+                case "customInstallActions":
+                    return "Custom Install Actions";
+                case "packagedServices":
+                    return "Service Installation";
+                case "localSystemServices":
+                    return "Local System Services";
+                case "backgroundSpatialPerception":
+                    return "Background Spatial Perception";
+                default:
+                    return cap;
+            }
+        }
+
+        private void DevicesListView_ItemClick(object sender, ItemClickEventArgs e)
+        {
+
+        }
+
+        private void Close_Click(object sender, RoutedEventArgs e)
+        {
+            Windows.UI.Xaml.Application.Current.Exit();
         }
     }
 }

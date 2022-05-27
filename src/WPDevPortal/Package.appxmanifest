@@ -3,7 +3,7 @@
 		 xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" 
 		 xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" 
 		 xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" IgnorableNamespaces="uap mp rescap">
-  <Identity Name="WPDevPortal" Publisher="CN=Empyreal96" Version="1.0.14.0" />
+  <Identity Name="WPDevPortal" Publisher="CN=Empyreal96" Version="1.0.15.0" />
   <mp:PhoneIdentity PhoneProductId="cfc861bb-9af2-4b44-9725-d0a0e23ed4b7" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>WPDevPortal</DisplayName>
@@ -18,16 +18,18 @@
   </Resources>
   <Applications>
     <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="SampleWdpClient.UniversalWindows.App">
-      <uap:VisualElements DisplayName="WPDevPortal" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" Description="Windows Device Portal UWP Client" BackgroundColor="transparent">
-        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png">
+      <uap:VisualElements DisplayName="WP Device Portal" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" Description="Windows Device Portal UWP Client" BackgroundColor="transparent">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" Square71x71Logo="Assets\SmallTile.png" Square310x310Logo="Assets\LargeTile.png">
         </uap:DefaultTile>
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
     </Application>
   </Applications>
   <Capabilities>
-    <Capability Name="internetClient" />
     <Capability Name="privateNetworkClientServer" />
 	  <rescap:Capability Name="packageManagement" />
+    <uap:Capability Name="enterpriseAuthentication"/>
+    <Capability Name="internetClientServer"/>
+  <DeviceCapability Name="wiFiControl" />
   </Capabilities>
 </Package>

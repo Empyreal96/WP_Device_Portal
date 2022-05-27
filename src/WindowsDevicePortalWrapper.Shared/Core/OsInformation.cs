@@ -5,6 +5,7 @@
 //----------------------------------------------------------------------------------------------
 
 using System;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
@@ -84,7 +85,12 @@ namespace Microsoft.Tools.WindowsDevicePortal
             /// <summary>
             /// A virtual machine. This may or may not be an emulator.
             /// </summary>
-            VirtualMachine
+            VirtualMachine,
+
+            /// <summary>
+            /// A Windows 10 Mobile Device
+            /// </summary>
+            Lumia
         }
 
         /// <summary>
@@ -210,6 +216,11 @@ namespace Microsoft.Tools.WindowsDevicePortal
 
                     try
                     {
+                        Debug.WriteLine(PlatformName);
+                        if (this.PlatformName == null)
+                        {
+                            PlatformName = "Unknown";
+                        }
                         // MinnowBoard Max model no. can change based on firmware
                         if (this.PlatformName.Contains("Minnowboard Max"))
                         {
