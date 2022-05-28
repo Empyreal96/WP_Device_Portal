@@ -7,10 +7,13 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:qc="using:Ailon.QuickCharts"
     xmlns:controls="using:Microsoft.Toolkit.Uwp.UI.Controls"
-    xmlns:tview="using:TreeViewControl"
+   
     RequestedTheme="Dark"
     Loaded="Page_Loaded"
     mc:Ignorable="d" Background="#FF1E1E1E">
+    <Page.Resources>
+        <CollectionViewSource x:Key="cvs" x:Name="cvs" IsSourceGrouped="True"/>
+    </Page.Resources>
     <Grid>
 
         <Pivot Title="WP Device Portal" x:Name="MainPivot" SelectionChanged="MainPivot_SelectionChanged" Background="#FF333337">
@@ -34,6 +37,7 @@
 
 
                             <TextBox x:Name="address" Grid.Row="0" Margin="5,5,5,5" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="HomeHeader" TextWrapping="NoWrap" Text="" VerticalAlignment="Top" Height="32" TextChanged="Address_TextChanged"/>
+                            <TextBox x:Name="connectedbox" Grid.Row="0" Visibility="Collapsed" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="HomeHeader" Margin="5,5,5,5" BorderBrush="{x:Null}" Background="{x:Null}" Foreground="#FF069B21"  IsDoubleTapEnabled="False" IsReadOnly="True" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False"/>
                             <TextBox x:Name="ConnectionUser" Margin="5,5,5,5" PlaceholderText="Username  (optional)" RelativePanel.Below="address" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True"/>
                             <PasswordBox x:Name="ConnectionPassword" PlaceholderText="Password (optional)" Margin="5,5,5,5" RelativePanel.Below="ConnectionUser" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True"/>
                             <Button x:Name="connectToDevice" RelativePanel.RightOf="rebootDevice" RelativePanel.LeftOf="shutdownDevice"  RelativePanel.Below="ConnectionPassword" Content="Connect" Grid.Row="0" HorizontalAlignment="Stretch" Margin="5,5,5,5" VerticalAlignment="Top" Width="auto" Click="ConnectToDevice_Click" Height="32" IsEnabled="False"/>
@@ -372,10 +376,10 @@
             </PivotItem>
             <PivotItem Header="Devices" x:Name="DevicePivot">
                 <Grid x:Name="Devgrid">
-                    <ScrollViewer>
+                   
                         <RelativePanel Margin="-12,0,-12,0" >
-                            
-                            <ListView x:Name="DevicesListView" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" IsItemClickEnabled="True" ItemClick="DevicesListView_ItemClick" HorizontalAlignment="Stretch" IsHitTestVisible="true">
+                          
+                            <ListView x:Name="DevicesListView" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" IsItemClickEnabled="True" ItemClick="DevicesListView_ItemClick" HorizontalAlignment="Stretch" IsHitTestVisible="true" ItemsSource="{Binding Source={StaticResource cvs}}">
                                 <ListView.ItemContainerStyle>
                                     <Style TargetType="ListViewItem">
                                         <Setter Property="HorizontalContentAlignment" Value="Stretch"></Setter>
@@ -387,7 +391,7 @@
                                         <ItemsControl>
                                             <RelativePanel>
 
-                                                <controls:Expander x:Name="DevicesExpander"  Header="{Binding Description}" HorizontalContentAlignment="Stretch"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" ExpandDirection="Down" Background="{x:Null}" FocusVisualSecondaryBrush="{x:Null}" FocusVisualPrimaryBrush="{x:Null}" AllowFocusOnInteraction="False" >
+                                            <controls:Expander x:Name="DevicesExpander" Background="{x:Null}" Header="{Binding Description}"  HorizontalContentAlignment="Stretch"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" ExpandDirection="Down" FocusVisualSecondaryBrush="{x:Null}" FocusVisualPrimaryBrush="{x:Null}" AllowFocusOnInteraction="False" >
 
                                                     <Border Background="{x:Null}" HorizontalAlignment="Left" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True">
                                                         <TextBlock x:Name="ExpanderItem1" Margin="5,5,5,5" TextWrapping="Wrap" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Text="{Binding FullDetails}" HorizontalAlignment="Left"/>
@@ -400,13 +404,23 @@
                                         </ItemsControl>
                                     </DataTemplate>
                                 </ListView.ItemTemplate>
+                                <ListView.GroupStyle>
+                                    <GroupStyle>
+                                        <GroupStyle.HeaderTemplate>
+                                            <DataTemplate >
+                                                <TextBlock Text="{Binding Key}" HorizontalAlignment="Stretch"/>
+
+                                            </DataTemplate>
+                                        </GroupStyle.HeaderTemplate>
+                                    </GroupStyle>
+                                </ListView.GroupStyle>
                             </ListView>
 
 
 
                         </RelativePanel>
 
-                    </ScrollViewer>
+                    
                 </Grid>
             </PivotItem>
 
@@ -417,7 +431,7 @@
                         <TextBlock x:Name="AdapterInfoText" Text="" TextWrapping="Wrap" RelativePanel.AlignLeftWithPanel="True" HorizontalAlignment="Stretch" RelativePanel.Below="WifiAdaptersCombo" RelativePanel.AlignRightWith="RescanNetworks" Margin="5,12,85,5"></TextBlock>
                         <Button x:Name="RescanNetworks" Content="Refresh" Click="{x:Bind RefreshNetworkList}" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="WifiAdaptersCombo" Margin="5,5,5,5"></Button>
 
-                        <ListView x:Name="CurrentlyConnectedInfo" IsItemClickEnabled="True" ItemClick="{x:Bind ViewCurrentConnection}" RelativePanel.AlignLeftWithPanel="True" IsHitTestVisible="true" RelativePanel.AlignRightWithPanel="True"  RelativePanel.Below="RescanNetworks"  Margin="-10,5,-10,5" BorderBrush="#FF333337">
+                        <ListView x:Name="CurrentlyConnectedInfo" IsItemClickEnabled="True" ItemClick="{x:Bind ViewCurrentConnection}" RelativePanel.AlignLeftWithPanel="True" IsHitTestVisible="true" RelativePanel.AlignRightWithPanel="True"  RelativePanel.Below="RescanNetworks"  Margin="-10,10,-10,5" BorderBrush="#FF333337">
                             <ListView.ItemContainerStyle>
                                 <Style TargetType="ListViewItem">
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch"></Setter>
@@ -494,8 +508,8 @@
                                   RelativePanel.AlignLeftWithPanel="True"
                                   RelativePanel.Below="CrashAppList"
                                   Margin="5,5,5,5"
-                                  OffContent="Tracing Off"
-                                  OnContent="Tracing On"/>
+                                  OffContent="Off"
+                                  OnContent="On"/>
                     <ComboBox x:Name="etwLevel"
                               PlaceholderText="ETW Level"
                               MinWidth="200"
@@ -556,6 +570,7 @@
                                ScrollViewer.VerticalScrollMode="Enabled"
                                ScrollViewer.HorizontalScrollMode="Enabled"
                                TextWrapping="Wrap"
+                                   Text="Choose a Provider, then enable to start listening for events."
                                RelativePanel.AlignBottomWithPanel="True"
                                RelativePanel.AlignRightWithPanel="True"
                                RelativePanel.AlignLeftWithPanel="True"
@@ -665,7 +680,8 @@
                              RelativePanel.Above="UpdateBtn"
                              Height="5" Margin="5,5,5,20"
                              RelativePanel.AlignRightWithPanel="True" 
-                             RelativePanel.AlignLeftWithPanel="True"/>
+                             RelativePanel.AlignLeftWithPanel="True"
+                                         />
 
                             <TextBlock x:Name="UpdateDetailsBox" 
                            TextWrapping="Wrap"
@@ -689,6 +705,6 @@
                 </Grid>
             </PivotItem>
         </Pivot>
-        <Button x:Name="CloseBtn"  Click="Close_Click" FontSize="12" Content="&#xE106;"  FontFamily="Segoe MDL2 Assets" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,2,2,0" Background="#FF333337" BorderBrush="{x:Null}" Foreground="{ThemeResource SystemAccentColorLight1}"/>
+        <Button x:Name="CloseBtn"  Click="Close_Click" FontSize="12" Content="&#xE106;"  FontFamily="Segoe MDL2 Assets" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,4,4,0" Background="#FF333337" BorderBrush="{x:Null}" Foreground="{ThemeResource SystemAccentColorLight1}"/>
     </Grid>
 </Page>

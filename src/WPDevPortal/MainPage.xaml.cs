@@ -38,6 +38,7 @@ using System.IO.Compression;
 using System.Xml.Linq;
 using System.Xml;
 using Windows.Security.Cryptography;
+using Microsoft.Toolkit.Uwp.UI.Controls;
 
 namespace WPDevPortal
 {
@@ -107,8 +108,8 @@ namespace WPDevPortal
                     CloseBtn.Visibility = Visibility.Collapsed;
                 }
 
-                
-                 IsETWStarted = false;
+
+                IsETWStarted = false;
                 AppNamesCombo.IsEnabled = false;
                 ProgRingFiles.IsEnabled = false;
                 ProgressText.Visibility = Visibility.Collapsed;
@@ -120,8 +121,10 @@ namespace WPDevPortal
                     $"• WindowsDevicePortalWrapper and Sample by Microsoft.\n" +
                     $"• UWPQuickCharts by 'ailon'\n" +
                     $"• Octokit by Github\n" +
-                    $"• ArchiverPlus Class by Lightbuzz(?)\n\n" +
-                    $"Thanks to BAstifan for help with a few parts";
+                    $"• ArchiverPlus Class by Lightbuzz(?)\n" +
+                    $"• SharpCompress archiver for Appx reading\n" +
+                    $"• Various StackExchange pages\n\n" +
+                    $"Thanks to BAstifan for contributions to development";
                 var str = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily;
                 string lastSavedAddress = LoadLastAddress();
                 if (lastSavedAddress == "NoAddress")
@@ -392,7 +395,7 @@ namespace WPDevPortal
 
 
                             portal.RealtimeEventsMessageReceived += Portal_RealtimeEventsMessageReceived;
-                           // ETWLogger.Add($"[Timestamp]\n[ID] Provider\nValues\n\n");
+                            // ETWLogger.Add($"[Timestamp]\n[ID] Provider\nValues\n\n");
                             var ETWStart = portal.GetEtwProvidersAsync();
                             ETWResult = ETWStart.Result;
                             List<string> etwprovlist = new List<string>();
@@ -413,7 +416,7 @@ namespace WPDevPortal
 
                         });
 
-
+                        
                         isConnected = true;
                         // await Task.Run(() =>
                         //{
@@ -515,7 +518,7 @@ namespace WPDevPortal
                         }
 
 
-                       await Task.Delay(3000);
+                        await Task.Delay(3000);
                         await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                               () =>
                               {
@@ -523,6 +526,9 @@ namespace WPDevPortal
                                   ProgBar.IsEnabled = false;
                                   ProgBar.IsIndeterminate = false;
                                   address.BorderBrush = new SolidColorBrush(Windows.UI.Colors.Green);
+                                  connectedbox.Text = "connected";
+                                  connectedbox.Foreground = new SolidColorBrush(Windows.UI.Colors.Green);
+                                  connectedbox.Visibility = Visibility.Visible;
                                   connectToDevice.IsEnabled = false;
                                   EnablePivotPages(true);
                                   if (WDPAddress.Contains("127.0.0.1"))
@@ -571,6 +577,9 @@ namespace WPDevPortal
                     ProgBar.IsEnabled = false;
                     ProgBar.IsIndeterminate = false;
                     address.BorderBrush = new SolidColorBrush(Windows.UI.Colors.Red);
+                    connectedbox.Text = "failed";
+                    connectedbox.Foreground = new SolidColorBrush(Windows.UI.Colors.Red);
+                    connectedbox.Visibility = Visibility.Visible;
                     ExceptionHelper.Exceptions.ThrownExceptionErrorExtended(exception);
                     //sb.AppendLine(exception.Message);
                     connectToDevice.IsEnabled = true;
@@ -587,6 +596,9 @@ namespace WPDevPortal
                 ProgBar.IsEnabled = false;
                 ProgBar.IsIndeterminate = false;
                 address.BorderBrush = new SolidColorBrush(Windows.UI.Colors.Red);
+                connectedbox.Text = "disconnected";
+                connectedbox.Foreground = new SolidColorBrush(Windows.UI.Colors.Red);
+                connectedbox.Visibility = Visibility.Visible;
                 commandOutput.Text = ex.Message;
                 connectToDevice.IsEnabled = true;
                 ExceptionHelper.Exceptions.ThrownExceptionErrorExtended(ex);
@@ -615,7 +627,7 @@ namespace WPDevPortal
                     foreach (var elist in fetchedevents)
                     {
 
-                        
+
                         var etwTimestamp = DateTime.UtcNow;
                         string etwprovider = elist.Provider;
                         uint etwlevellog = elist.Level;
@@ -637,7 +649,7 @@ namespace WPDevPortal
                         }
 
                         List<string> finalList = new List<string>();
-                        
+
                         if (keysList.Count == valuesList.Count)
                         {
                             for (int i = 0; i < keysList.Count; i++)
@@ -660,7 +672,7 @@ namespace WPDevPortal
             }
         }
 
-       
+
 
         private void SaveLastAddress(string address)
         {
@@ -1128,7 +1140,7 @@ namespace WPDevPortal
         private async void applicationLoadButton_Click(object sender, RoutedEventArgs e)
         {
             LoadApplication();
-            installPkg.IsEnabled = true;
+            
 
 
 
@@ -1313,7 +1325,7 @@ namespace WPDevPortal
                     AppxImageIcon.Source = new BitmapImage(new Uri(FileIcon));
                     permissionsList.Clear();
                     // package.Close();
-
+                    installPkg.IsEnabled = true;
                     if (packageStream != null)
                     {
                         packageStream.Dispose();
@@ -1350,9 +1362,10 @@ namespace WPDevPortal
             {
                 applicationList.Text = "No Dependencies Selected";
             }
+            AppxDetails.Text += $"\nDependencies:\n";
             foreach (var file in depFiles)
             {
-                AppxDetails.Text += $"\nDependency: {file.Name}\n";
+                AppxDetails.Text += $"{file.Name}\n";
                 depList.Add(file);
             }
         }
@@ -2085,45 +2098,91 @@ namespace WPDevPortal
         }
 
 
-
+        string newName;
+        string newDescription;
         private Task<List<Device>> hardwareResult { get; set; }
         private async void FetchHWInfo()
         {
             List<HardwareInformation> DeviceInfo = new List<HardwareInformation>();
+            List<string> ClassList = new List<string>();
 
-            hardwareList = portal.GetDeviceListAsync();
-            hardwareResult = hardwareList;
+
+            hardwareResult = portal.GetDeviceListAsync();
+
             foreach (Device device in hardwareResult.Result)
             {
 
-                DeviceInfo.Add(new HardwareInformation
+                ClassList.Add(device.Class);
+
+                
+                if (device.FriendlyName == "" | device.Description == "")
                 {
-                    HWDeviceName = device.FriendlyName,
-                    Manufacturer = device.Manufacturer,
-                    ID = device.ID,
-                    ParentID = device.ParentID,
-                    Description = device.Description,
-                    Class = device.Class,
-                    StatusCode = device.StatusCode,
-                    ErrorCode = device.ProblemCode,
-                    FullDetails =
-                    $"Properties:\n" +
-                    $"Friendly Name: {device.FriendlyName}\n\n" +
-                    $"ID: {device.ID}\n\n" +
-                    $"ParentID: {device.ParentID}\n\n" +
-                    $"Class: {device.Class}\n\n" +
-                    $"Manufacturer: {device.Manufacturer}\n\n\n"
-                });
+                    if (device.FriendlyName == "")
+                    {
+                        newName = "Unknown";
+                    } 
+                    if (device.Description == "")
+                    {
+                        newDescription = "Unknown";
+                    }
+
+                    DeviceInfo.Add(new HardwareInformation
+                    {
+                        HWDeviceName = device.FriendlyName,
+                        Manufacturer = device.Manufacturer,
+                        ID = device.ID,
+                        ParentID = device.ParentID,
+                        Description = newDescription,
+                        Class = device.Class,
+                        StatusCode = device.StatusCode,
+                        ErrorCode = device.ProblemCode,
+                        FullDetails =
+                          $"Properties:\n" +
+                          $"Friendly Name: {newName}\n\n" +
+                          $"ID: {device.ID}\n\n" +
+                          $"ParentID: {device.ParentID}\n\n" +
+                          $"Class: {device.Class}\n\n" +
+                          $"Manufacturer: {device.Manufacturer}\n\n\n"
+                    });
+
+                }
+                else
+                {
+                    DeviceInfo.Add(new HardwareInformation
+                    {
+                        HWDeviceName = device.FriendlyName,
+                        Manufacturer = device.Manufacturer,
+                        ID = device.ID,
+                        ParentID = device.ParentID,
+                        Description = device.Description,
+                        Class = device.Class,
+                        StatusCode = device.StatusCode,
+                        ErrorCode = device.ProblemCode,
+                        FullDetails =
+                        $"Properties:\n" +
+                        $"Friendly Name: {device.FriendlyName}\n\n" +
+                        $"ID: {device.ID}\n\n" +
+                        $"ParentID: {device.ParentID}\n\n" +
+                        $"Class: {device.Class}\n\n" +
+                        $"Manufacturer: {device.Manufacturer}\n\n\n"
+                    });
+                }
 
 
             }
+
+
             //DeviceInfo.Sort();
             await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                                  () =>
                                  {
+                                     var groups = from c in DeviceInfo
+                                                  group c by c.Class;
+                                     this.cvs.Source = groups;
 
 
-                                     DevicesListView.ItemsSource = DeviceInfo;
+
+                                     //  DevicesListView.ItemsSource = DeviceInfo;
                                  });
 
         }
@@ -2247,7 +2306,8 @@ namespace WPDevPortal
             }
             else
             {
-
+                UpdateBtn.Visibility = Visibility.Collapsed;
+                UpdateDetailsBox.Text = "Connect to the Internet to check for updates";
                 return;
             }
 
@@ -3522,7 +3582,6 @@ namespace WPDevPortal
                                     IsConnected = item.IsConnected,
                                     Channel = item.Channel,
                                     CombinedInfo =
-                                $"Profile Name: {item.ProfileName}\n" +
                                 $"Auth: {item.AuthenticationAlgorithm}\n" +
                                 $"Channel: {item.Channel}\n" +
                                 $"Strength: {item.SignalQuality}\n",
@@ -3571,8 +3630,9 @@ namespace WPDevPortal
                    () =>
                    {
                        NetworkProgress.IsIndeterminate = false;
-                       Exceptions.CustomException($"Please make sure WiFi is enabled in Device Settings.\n\n{ex.Message}\n{ex.StackTrace}");
+                       //Exceptions.CustomException($"Please make sure WiFi is enabled in Device Settings.\n\n{ex.Message}\n{ex.StackTrace}");
                        //Exceptions.ThrownExceptionErrorExtended(ex);
+                       AdapterInfoText.Text = "Wifi is turned off or inaccessable";
                    });
             }
         }
@@ -4105,9 +4165,65 @@ namespace WPDevPortal
 
         }
 
-        private void Close_Click(object sender, RoutedEventArgs e)
+        private async void Close_Click(object sender, RoutedEventArgs e)
         {
-            Windows.UI.Xaml.Application.Current.Exit();
+
+
+
+            StackPanel Panel = new StackPanel();
+
+            TextBlock nameHeader = new TextBlock();
+            nameHeader.Margin = new Thickness(5, 5, 5, 5);
+            nameHeader.Text = $"Quit application?";
+            nameHeader.HorizontalAlignment = HorizontalAlignment.Stretch;
+            Panel.Children.Add(nameHeader);
+            ContentDialog dialog = new ContentDialog();
+            dialog.Content = Panel;
+            dialog.VerticalContentAlignment = VerticalAlignment.Center;
+            dialog.IsSecondaryButtonEnabled = true;
+            dialog.PrimaryButtonText = "Confirm";
+            dialog.PrimaryButtonClick += Dialog_PrimaryButtonClick4;
+            dialog.SecondaryButtonText = "Cancel";
+            dialog.SecondaryButtonClick += Dialog_SecondaryButtonClick4;
+
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+
+
+            }
+        }
+
+        private async void Dialog_PrimaryButtonClick4(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            StackPanel Panel = new StackPanel();
+
+            TextBlock nameHeader = new TextBlock();
+            nameHeader.Margin = new Thickness(5, 5, 5, 5);
+            nameHeader.Text = $"Quit application?";
+            nameHeader.HorizontalAlignment = HorizontalAlignment.Stretch;
+            ProgressRing exitRing = new ProgressRing();
+            exitRing.Width = 50;
+            exitRing.Height = 50;
+            exitRing.IsActive = true;
+            Panel.Children.Add(exitRing);
+            Panel.Children.Add(nameHeader);
+            ContentDialog dialog = new ContentDialog();
+            dialog.Content = Panel;
+            dialog.VerticalContentAlignment = VerticalAlignment.Center;
+            dialog.IsPrimaryButtonEnabled = false;
+            dialog.IsSecondaryButtonEnabled = false;
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                await Task.Delay(2000);
+                Windows.UI.Xaml.Application.Current.Exit();
+
+            }
+            
+        }
+
+        private void Dialog_SecondaryButtonClick4(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            return;
         }
     }
 }

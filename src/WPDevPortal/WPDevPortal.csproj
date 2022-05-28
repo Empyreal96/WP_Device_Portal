@@ -22,7 +22,7 @@
     <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
     <GenerateTestArtifacts>True</GenerateTestArtifacts>
     <AppxBundle>Always</AppxBundle>
-    <AppxBundlePlatforms>x64|arm</AppxBundlePlatforms>
+    <AppxBundlePlatforms>x86|x64|arm</AppxBundlePlatforms>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
     <PackageCertificateKeyFile>C:\Users\Empyreal96\Documents\Empyreal_Key.pfx</PackageCertificateKeyFile>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
@@ -447,10 +447,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\TreeViewControl-master\TreeViewControl.vcxproj">
-      <Project>{94560d69-a345-4e44-b897-eaa2b0e23238}</Project>
-      <Name>TreeViewControl</Name>
-    </ProjectReference>
     <ProjectReference Include="..\WindowsDevicePortalWrapper.UniversalWindows\WindowsDevicePortalWrapper.UniversalWindows.csproj">
       <Project>{68bb2c2c-919c-4c7b-8974-d770bb386087}</Project>
       <Name>WindowsDevicePortalWrapper.UniversalWindows</Name>
