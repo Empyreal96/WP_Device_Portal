@@ -181,7 +181,7 @@ namespace WPDevPortal
 
             this.DataContext = this;
 
-            _timer.Interval = TimeSpan.FromMilliseconds(1000);
+            _timer.Interval = TimeSpan.FromMilliseconds(500);
             _timer.Tick += UpdateRealTimeData;
             _timer.Start();
 
@@ -314,7 +314,7 @@ namespace WPDevPortal
                     if (connectArgs.Status == DeviceConnectionStatus.Connected)
                     {
 
-                        var token = processesAppsContainerScroll.RegisterPropertyChangedCallback(ScrollViewer.HorizontalOffsetProperty, OnScrollChangedChange);
+                       // var token = processesAppsContainerScroll.RegisterPropertyChangedCallback(ScrollViewer.HorizontalOffsetProperty, OnScrollChangedChange);
 
 
                         sb.Append("Connected to: ");
@@ -572,7 +572,8 @@ namespace WPDevPortal
                 }
                 catch (Exception exception)
                 {
-                    EnableDeviceControls(true);
+                    EnableDeviceControls(false);
+                    EnableConnectionControls(true);
                     ProgBar.Visibility = Visibility.Collapsed;
                     ProgBar.IsEnabled = false;
                     ProgBar.IsIndeterminate = false;
@@ -588,10 +589,12 @@ namespace WPDevPortal
                 this.commandOutput.Text = sb.ToString();
 
                 EnableConnectionControls(true);
-                connectToDevice.IsEnabled = false;
+               // connectToDevice.IsEnabled = false;
             }
             catch (Exception ex)
             {
+                EnableDeviceControls(false);
+                EnableConnectionControls(true);
                 ProgBar.Visibility = Visibility.Collapsed;
                 ProgBar.IsEnabled = false;
                 ProgBar.IsIndeterminate = false;
@@ -751,7 +754,9 @@ namespace WPDevPortal
                 DevicePivot.Visibility = Visibility.Collapsed;
                 WifiPivotItem.Visibility = Visibility.Collapsed;
                 CrashDumpsPivot.Visibility = Visibility.Collapsed;
+                CrashDumpsPage.Visibility = Visibility.Collapsed;
 
+                CrashDumpsPage.IsEnabled = false;
                 ApplicationPivot.IsEnabled = false;
                 FilesPivot.IsEnabled = false;
                 ProcessesPivot.IsEnabled = false;
@@ -771,7 +776,9 @@ namespace WPDevPortal
                 DevicePivot.Visibility = Visibility.Visible;
                 WifiPivotItem.Visibility = Visibility.Visible;
                 CrashDumpsPivot.Visibility = Visibility.Visible;
+                CrashDumpsPage.Visibility = Visibility.Visible;
 
+                CrashDumpsPage.IsEnabled = true;
                 ApplicationPivot.IsEnabled = true;
                 FilesPivot.IsEnabled = true;
                 ProcessesPivot.IsEnabled = true;
@@ -1401,7 +1408,7 @@ namespace WPDevPortal
             }
             catch (Exception ex)
             {
-                applicationList.Text = $"ERROR:\n" +
+                AppxDetails.Text = $"ERROR:\n" +
                     $"{ex.Message}\n\n" +
                     $"{ex.StackTrace}\n\n" +
                     $"{ex.Source}";
@@ -1413,10 +1420,14 @@ namespace WPDevPortal
             await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                                 () =>
                                 {
-                                    var status = args.Status;
+                                    ApplicationInstallStatus status = args.Status;
                                     var message = args.Message;
                                     var phase = args.Phase;
                                     applicationList.Text = message;
+                                    if (status == ApplicationInstallStatus.Failed)
+                                    {
+                                        AppxDetails.Text = message;
+                                    }
                                 });
         }
 
@@ -1431,147 +1442,90 @@ namespace WPDevPortal
 
         #region FetchProcessInfo
 
-        public AppRowInfo processRow { get; set; }
+        public class ProcessInformation
+        {
+            public string ProcessName { get; set; }
+            public uint PID { get; set; }
+            public uint SessionID { get; set; }
+            public string UserName { get; set; }
+            public string PackageName { get; set; }
+            public ulong WorkingSet { get; set; }
+            public ulong PageFile { get; set; }
+            public ulong TotalCommits { get; set; }
+            public bool IsXAP { get; set; }
+            public string FullProcDetails { get; set; }
+        }
+
+        List<ProcessInformation> ProcessInfoList;
+        Visibility ConnectionNoticeVisible = Visibility.Visible;
         private async void FetchProcessInfo()
         {
-
-            ObservableCollection<AppRowInfo> processesList = new ObservableCollection<AppRowInfo>();
+            int runningAmount = 0;
+            ProcessInfoList = new List<ProcessInformation>();
             RunningProcesses proclists = await portal.GetRunningProcessesAsync();
             List<DeviceProcessInfo> processes = proclists.Processes;
+
             await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                                 () =>
                                 {
                                     foreach (var processItem in processes.OrderBy(item => item.Name))
                                     {
-                                        string PID = processItem.ProcessId.ToString(); //PID Value
-                                        string SessionID = processItem.SessionId.ToString(); //PID Value
-                                        string Name = processItem.Name; //Name Value
-                                        string UserName = processItem.UserName; //UserName Value
-                                        string Usage = processItem.PackageFullName; //Package Full Name Value
-                                        string Memory = ((long)processItem.WorkingSet).ToFileSize(); //Working Set Memory Value
-                                        string PageFile = ((long)processItem.PageFile).ToFileSize(); ; //PageFile Value
-                                        string Disk = ((long)processItem.TotalCommit).ToFileSize(); //Disk Value
-                                        string AppType = processItem.IsXAP.ToString(); //Type Value
-                                        processRow = new AppRowInfo(PID, SessionID, Name, UserName, Usage, Memory, PageFile, Disk, AppType);
-                                        //Append row
-                                        processesList.Add(processRow);
+                                        ProcessInfoList.Add(new ProcessInformation
+                                        {
+                                            ProcessName = processItem.Name,
+                                            PID = processItem.ProcessId,
+                                            SessionID = processItem.SessionId,
+                                            UserName = processItem.UserName,
+                                            PackageName = processItem.PackageFullName,
+                                            WorkingSet = processItem.WorkingSet,
+                                            PageFile = processItem.PageFile,
+                                            TotalCommits = processItem.TotalCommit,
+                                            IsXAP = processItem.IsXAP,
+                                            FullProcDetails =
+                                            $"Package: {processItem.PackageFullName}\n" +
+                                            $"Publisher: {processItem.Publisher}\n" +
+                                            $"PID: {processItem.ProcessId}\n" +
+                                            $"Session ID: {processItem.SessionId}\n" +
+                                            $"User: {processItem.UserName}\n" +
+                                            $"Working Set: {((long)processItem.WorkingSet).ToFileSize()}\n" +
+                                            $"Total Commits: {((long)processItem.TotalCommit).ToFileSize()}\n" +
+                                            $"Page File: {((long)processItem.PageFile).ToFileSize()}\n" +
+                                            $"Is XAP: {processItem.IsXAP}\n" +
+                                            $"Is Running: {processItem.IsRunning}\n" +
+                                            $"CPU Usage: {processItem.CpuUsage}%\n\n"
+                                        }); 
+
+                                        if (processItem.IsRunning)
+                                        {
+                                            runningAmount++;
+                                        }
+
+                                      
                                     }
 
                                     //Set Items Source
-                                    processesListView.ItemsSource = processesList;
+                                    ProcessesHeader.Text = $"Total: {ProcessInfoList.Count} | Active: {runningAmount}";
+                                    processesListView.ItemsSource = ProcessInfoList;
                                 });
         }
 
-        public class AppRowInfo : BindableBase
+        private void ProcRefresh_Click(object sender, RoutedEventArgs e)
         {
-            public string PID { get; internal set; }
-            public string Name { get; internal set; }
-            public string UserName { get; internal set; }
-            public string SessionID { get; internal set; }
-            public string AppType { get; internal set; }
-
-            private string usage;
-            public string Usage
+            if (ProcessInfoList.Count > 0)
             {
-                get { return usage; }
-                set
-                {
-                    if (usage != value)
-                    {
-                        usage = value;
-                        RaisePropertyChanged("Usage");
-                    }
-                }
+                ProcessInfoList.Clear();
+                FetchProcessInfo();
             }
 
-            private string memory;
-            public string Memory
-            {
-                get { return memory; }
-                set
-                {
-                    if (memory != value)
-                    {
-                        memory = value;
-                        RaisePropertyChanged("Memory");
-                    }
-                }
-            }
-
-            private string pfile;
-            public string PageFile
-            {
-                get { return pfile; }
-                set
-                {
-                    if (pfile != value)
-                    {
-                        pfile = value;
-                        RaisePropertyChanged("PageFile");
-                    }
-                }
-            }
-
-            private string disk;
-            public string Disk
-            {
-                get { return disk; }
-                set
-                {
-                    if (disk != value)
-                    {
-                        disk = value;
-                        RaisePropertyChanged("Disk");
-                    }
-                }
-            }
-            public AppRowInfo(string pid, string sid, string name, string username, string usage, string memory, string pfile, string disk, string type)
-            {
-                PID = pid;
-                SessionID = sid;
-                Name = name;
-                UserName = username;
-                Usage = usage;
-                Memory = memory;
-                PageFile = pfile;
-                Disk = disk;
-                AppType = type;
-            }
-
-            public void Update(string usage, string memory, string pfile, string disk)
-            {
-                if (!Usage.Equals(usage))
-                {
-                    Usage = usage;
-                }
-                if (!Memory.Equals(memory))
-                {
-                    Memory = memory;
-                }
-                if (!PageFile.Equals(pfile))
-                {
-                    PageFile = pfile;
-                }
-                if (!Disk.Equals(disk))
-                {
-                    Disk = disk;
-                }
-            }
         }
 
 
-        private void OnScrollChangedChange(DependencyObject sender, DependencyProperty e)
-        {
-            try
-            {
-                var currentHOffset = processesAppsContainerScroll.HorizontalOffset;
-                processesAppsHeaderContainerScroll.ChangeView(currentHOffset, 0, 1);
-            }
-            catch (Exception ex)
-            {
+       
 
-            }
-        }
+        
+
+
+       
         #endregion
 
 
@@ -2281,11 +2235,11 @@ namespace WPDevPortal
         /// 
         /// MUST CHANGE THESE BEFORE EACH PUBLIC GITHUB RELEASE
         /// </summary>
-        public static string CurrentBuildVersion = "1.0.15.0";
-        public static string PreviousBuildVersion = "1.0.14.0";
-        public static string NextBuildVersion = "1.0.16.0";
-        public static string UploadedFileName = "WPDevPortal_1.0.16.0_Test.zip";
-        public static string AppxUpdateName = "WPDevPortal_1.0.16.0_x86_x64_arm.appxbundle";
+        public static string CurrentBuildVersion = "1.0.16.0";
+        public static string PreviousBuildVersion = "1.0.15.0";
+        public static string NextBuildVersion = "1.0.17.0";
+        public static string UploadedFileName = "WPDevPortal_1.0.17.0_Test.zip";
+        public static string AppxUpdateName = "WPDevPortal_1.0.17.0_x86_x64_arm.appxbundle";
 
         public StorageFolder folder { get; set; }
         public StorageFile file { get; set; }
@@ -2347,9 +2301,20 @@ namespace WPDevPortal
                     UpdateDetailsBox.Text += $"Current Build: {CurrentBuildVersion}\n";
                     UpdateDetailsBox.Text += $"Date Update Published: {latestRelease.PublishedAt}\n\n";
 
-                    UpdateDetailsBox.Text += $"Download URL: {UpdateURL}\n";
-                    DLButton.Visibility = Visibility.Visible;
-                    UpdateBtn.Visibility = Visibility.Collapsed;
+                  
+                    if (latestRelease.TagName == CurrentBuildVersion || latestRelease.TagName == PreviousBuildVersion)
+                    {
+                        UpdateDetailsBox.Text = "No Updated Found";
+                        DLButton.Visibility = Visibility.Collapsed;
+                        UpdateBtn.Visibility = Visibility.Collapsed;
+                    }
+                    if (latestRelease.TagName == NextBuildVersion)
+                    {
+
+                        UpdateDetailsBox.Text += $"Download URL: {UpdateURL}\n";
+                        DLButton.Visibility = Visibility.Visible;
+                        UpdateBtn.Visibility = Visibility.Collapsed;
+                    } 
 
                 }
             }
@@ -3056,6 +3021,8 @@ namespace WPDevPortal
         private void ProcessesPivot_Loaded(object sender, RoutedEventArgs e)
         {
             processesListView.IsEnabled = true;
+            ConnectionNoticeVisible = Visibility.Collapsed;
+            this.Bindings.Update();
         }
 
         #endregion
@@ -4224,6 +4191,55 @@ namespace WPDevPortal
         private void Dialog_SecondaryButtonClick4(ContentDialog sender, ContentDialogButtonClickEventArgs args)
         {
             return;
+        }
+
+        private void MainPivot_Loaded(object sender, RoutedEventArgs e)
+        {
+            ConnectionNoticeVisible = Visibility.Collapsed;
+           this.Bindings.Update();
+            
+        }
+
+        private void ApplicationPivot_Loaded(object sender, RoutedEventArgs e)
+        {
+            ConnectionNoticeVisible = Visibility.Collapsed;
+            this.Bindings.Update();
+        }
+
+        private void FilesPivot_Loaded(object sender, RoutedEventArgs e)
+        {
+            ConnectionNoticeVisible = Visibility.Collapsed;
+            this.Bindings.Update();
+        }
+
+        private void PerfPivot_Loaded(object sender, RoutedEventArgs e)
+        {
+            ConnectionNoticeVisible = Visibility.Collapsed;
+            this.Bindings.Update();
+        }
+
+        private void DevicePivot_Loaded(object sender, RoutedEventArgs e)
+        {
+            ConnectionNoticeVisible = Visibility.Collapsed;
+            this.Bindings.Update();
+        }
+
+        private void WifiPivotItem_Loaded(object sender, RoutedEventArgs e)
+        {
+            ConnectionNoticeVisible = Visibility.Collapsed;
+            this.Bindings.Update();
+        }
+
+        private void CrashDumpsPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            ConnectionNoticeVisible = Visibility.Collapsed;
+            this.Bindings.Update();
+        }
+
+        private void CrashDumpsPivot_Loaded(object sender, RoutedEventArgs e)
+        {
+            ConnectionNoticeVisible = Visibility.Collapsed;
+            this.Bindings.Update();
         }
     }
 }

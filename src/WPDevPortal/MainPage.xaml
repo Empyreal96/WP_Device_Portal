@@ -15,8 +15,17 @@
         <CollectionViewSource x:Key="cvs" x:Name="cvs" IsSourceGrouped="True"/>
     </Page.Resources>
     <Grid>
-
-        <Pivot Title="WP Device Portal" x:Name="MainPivot" SelectionChanged="MainPivot_SelectionChanged" Background="#FF333337">
+        <Grid Canvas.ZIndex="300" Visibility="{x:Bind ConnectionNoticeVisible, Mode=OneWay}" VerticalAlignment="Stretch" Grid.RowSpan="3">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Padding="10,10,10,10">
+                <Viewbox MaxHeight="100" MaxWidth="100" Margin="0,0,0,10">
+                    <ProgressRing x:Name="LoadingRing" IsActive="True"></ProgressRing>
+                </Viewbox>
+                <TextBlock  Text="Loading" VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" TextAlignment="Center" Margin="0,0,0,15" FontSize="20"/>
+                <TextBlock  Text="Background tasks running" VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" TextAlignment="Center" Margin="0,0,0,15" FontSize="14"/>
+            </StackPanel>
+        </Grid>
+        
+        <Pivot Title="WP Device Portal" x:Name="MainPivot" SelectionChanged="MainPivot_SelectionChanged" Loaded="MainPivot_Loaded" Background="#FF333337">
             <PivotItem Header="Home" x:Name="HomePivot" ScrollViewer.IsHorizontalScrollChainingEnabled="False">
                 <Grid HorizontalAlignment="Stretch">
                     <Grid.RowDefinitions>
@@ -56,7 +65,7 @@
 
                 </Grid>
             </PivotItem>
-            <PivotItem Header="Applications" x:Name="ApplicationPivot">
+            <PivotItem Header="Applications" x:Name="ApplicationPivot" Loaded="ApplicationPivot_Loaded">
 
                 <Grid>
                     <Grid.RowDefinitions>
@@ -138,7 +147,7 @@
                     </ScrollViewer>
                 </Grid>
             </PivotItem>
-            <PivotItem Header="Files" x:Name="FilesPivot">
+            <PivotItem Header="Files" x:Name="FilesPivot" Loaded="FilesPivot_Loaded">
 
                 <Grid x:Name="fileManagementGrid" HorizontalAlignment="Stretch">
                     <Grid.RowDefinitions>
@@ -229,107 +238,28 @@
                 </Grid>
             </PivotItem>
             <PivotItem Header="Processes" Loaded="ProcessesPivot_Loaded" Unloaded="ProcessesPivot_Unloaded" x:Name="ProcessesPivot" ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.IsHorizontalScrollChainingEnabled="False">
-                <Grid x:Name="processesAppsContainer">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <ScrollViewer x:Name="processesAppsHeaderContainerScroll" Margin="0,12" HorizontalContentAlignment="Stretch"  VerticalScrollBarVisibility="Hidden" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Hidden" IsHorizontalRailEnabled="True" IsHorizontalScrollChainingEnabled="True">
-                        <Grid Margin="0,0">
-                            <Grid.Resources>
-                                <Style TargetType="Button">
-                                    <Setter Property="FontSize" Value="11"/>
-                                    <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Height" Value="24"/>
-                                    <Setter Property="Padding" Value="10,0,0,0"/>
-                                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                                </Style>
-                            </Grid.Resources>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="200"/>
-                                <ColumnDefinition Width="75"/>
-                                <ColumnDefinition Width="100"/>
-                                <ColumnDefinition Width="100"/>
-                                <ColumnDefinition Width="100"/>
-                                <ColumnDefinition Width="110"/>
-                                <ColumnDefinition Width="200"/>
-                                <ColumnDefinition Width="100"/>
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="ForestGreen" Opacity="0.7" Background="Transparent">
-                                <Button Content="Name" IsHitTestVisible="False"  Tag="Name" Background="Transparent" Width="200" Margin="5,0,5,0" FontWeight="Bold"/>
-                            </Border>
-                            <Border Grid.Column="1"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Green" Opacity="0.7" Background="Transparent">
-                                <Button Background="Transparent" IsHitTestVisible="False"  Content="PID" FontWeight="Bold" Width="75" Margin="5,0,5,0" Tag="PID"/>
-                            </Border>
-                            <Border Grid.Column="2"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Gray" Opacity="0.7" Background="Transparent">
-                                <Button Background="Transparent" IsHitTestVisible="False"  Content="Full Name"  FontWeight="Bold" Width="100" Margin="5,0,5,0" Tag="Usage"/>
-                            </Border>
-                            <Border Grid.Column="3"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Orange" Opacity="0.7" Background="Transparent">
-                                <Button Background="Transparent" IsHitTestVisible="False"  Content="Working Set" FontWeight="Bold" Width="100" Margin="5,0,5,0" Tag="Memory"/>
-                            </Border>
-                            <Border Grid.Column="4"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="BlueViolet" Opacity="0.7" Background="Transparent">
-                                <Button Background="Transparent"  IsHitTestVisible="False" Content="PAGE FILE" FontWeight="Bold" Width="100" Margin="5,0,5,0" Tag="PageFile"/>
-                            </Border>
-                            <Border Grid.Column="5"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Tomato" Opacity="0.7" Background="Transparent">
-                                <Button Background="Transparent" IsHitTestVisible="False"  Content="Total Commit" FontWeight="Bold" Width="110" Margin="5,0,5,0" Tag="Disk"/>
-                            </Border>
-                            <Border Grid.Column="6"  BorderThickness="1" Margin="2,0,2,0" BorderBrush="Green" Opacity="0.7" Background="Transparent">
-                                <Button Background="Transparent" IsHitTestVisible="False"  Content="USER" FontWeight="Bold" Width="200" Margin="5,0,5,0" Tag="User"/>
-                            </Border>
-                            <Border Grid.Column="7"  BorderThickness="1" Margin="2,0,15,0" BorderBrush="Tomato" Opacity="0.7" Background="Transparent">
-                                <Button Background="Transparent" IsHitTestVisible="False"  Content="Is XAP" FontWeight="Bold" Width="100"  Tag="AppType" Margin="5,0,5,0"/>
-                            </Border>
-                        </Grid>
-                    </ScrollViewer>
-                    <ScrollViewer  x:Name="processesAppsContainerScroll" Margin="0,-12" Grid.Row="1" HorizontalContentAlignment="Stretch" ScrollViewer.IsHorizontalScrollChainingEnabled="True" VerticalScrollBarVisibility="Visible" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Visible" IsHorizontalRailEnabled="True">
-                        <ListView x:Name="processesListView" Margin="0,0" SelectionMode="Multiple" IsMultiSelectCheckBoxEnabled="True">
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
-                                    <Setter Property="IsHitTestVisible" Value="False"/>
-                                    <Setter Property="Margin" Value="-32,5,0,5"/>
-                                </Style>
-                            </ListView.ItemContainerStyle>
-                            <ListView.ItemTemplate>
+                <RelativePanel>
+                    <TextBox x:Name="ProcessesHeader" Text="" RelativePanel.AlignLeftWithPanel="True"  Margin="-14,0,-15,0" RelativePanel.AlignRightWith="ProcRefresh" IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False" Foreground="White" BorderBrush="{x:Null}" IsReadOnly="True" Background="#FF252526" Height="40" />
+                    <Button x:Name="ProcRefresh" Click="ProcRefresh_Click" Content="Refresh" RelativePanel.AlignRightWithPanel="True" Margin="0,4,0,0"/>
+                    <ListView x:Name="processesListView" RelativePanel.Below="ProcessesHeader" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.AlignBottomWithPanel="True"  IsItemClickEnabled="True" IsMultiSelectCheckBoxEnabled="False">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"></Setter>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid BorderBrush="{StaticResource SystemControlBackgroundBaseLowBrush}" BorderThickness="0,0,0,1">
-                                        <Grid.Resources>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="FontSize" Value="12"/>
-                                                <Setter Property="HorizontalAlignment" Value="Left"/>
-                                                <Setter Property="Margin" Value="2,0,2,0"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="TextWrapping" Value="Wrap"/>
-                                            </Style>
-                                        </Grid.Resources>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="200"/>
-                                            <ColumnDefinition Width="75"/>
-                                            <ColumnDefinition Width="100"/>
-                                            <ColumnDefinition Width="100"/>
-                                            <ColumnDefinition Width="100"/>
-                                            <ColumnDefinition Width="110"/>
-                                            <ColumnDefinition Width="200"/>
-                                            <ColumnDefinition Width="100"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <TextBlock Grid.Column="0" Text="{Binding Name}"  />
-
-                                        <TextBlock Grid.Column="1" Text="{Binding PID}" />
-                                        <TextBlock Grid.Column="2" Text="{Binding Usage}" />
-                                        <TextBlock Grid.Column="3" Text="{Binding Memory}" />
-                                        <TextBlock Grid.Column="4" Text="{Binding PageFile}" />
-                                        <TextBlock Grid.Column="5" Text="{Binding Disk}" />
-                                        <TextBlock Grid.Column="6" Text="{Binding UserName}" MinWidth="150" />
-                                        <TextBlock Grid.Column="7" Text="{Binding AppType}"  />
-                                    </Grid>
-                                </DataTemplate>
+                            <RelativePanel>
+                            <controls:Expander x:Name="ProcessExpander" Background="{x:Null}" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" HorizontalContentAlignment="Left" FocusVisualSecondaryBrush="{x:Null}" FocusVisualPrimaryBrush="{x:Null}" AllowFocusOnInteraction="False" Header="{Binding ProcessName}" HorizontalAlignment="Stretch">
+                                    <TextBlock HorizontalAlignment="Left"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" TextWrapping="Wrap" VerticalAlignment="Stretch"  Text="{Binding FullProcDetails}" FocusVisualPrimaryBrush="{x:Null}" FocusVisualSecondaryBrush="{x:Null}"/>
+                                    </controls:Expander>
+                            </RelativePanel>
+                        </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
-                    </ScrollViewer>
-                </Grid>
+                </RelativePanel>
             </PivotItem>
-            <PivotItem Header="Performance" x:Name="PerfPivot" >
+            <PivotItem Header="Performance" x:Name="PerfPivot" Loaded="PerfPivot_Loaded">
                 <Grid x:Name="PerfGrid">
                     <ScrollViewer Margin="-12,0,-12,0">
                         <RelativePanel Margin="12,0,12,0">
@@ -374,7 +304,7 @@
                 </Grid>
 
             </PivotItem>
-            <PivotItem Header="Devices" x:Name="DevicePivot">
+            <PivotItem Header="Devices" x:Name="DevicePivot" Loaded="DevicePivot_Loaded">
                 <Grid x:Name="Devgrid">
                    
                         <RelativePanel Margin="-12,0,-12,0" >
@@ -424,7 +354,7 @@
                 </Grid>
             </PivotItem>
 
-            <PivotItem x:Name="WifiPivotItem" Header="Wifi">
+            <PivotItem x:Name="WifiPivotItem" Header="Wifi" Loaded="WifiPivotItem_Loaded">
                 <Grid>
                     <RelativePanel>
                         <ComboBox x:Name="WifiAdaptersCombo" SelectionChanged="WifiAdaptersCombo_SelectionChanged" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.AlignTopWithPanel="True" HorizontalAlignment="Stretch" PlaceholderText="Wifi Adapters"></ComboBox>
@@ -488,7 +418,7 @@
             </PivotItem>
 
 
-            <PivotItem x:Name="CrashDumpsPage" Header="Event Tracing">
+            <PivotItem x:Name="CrashDumpsPage" Header="Event Tracing" Loaded="CrashDumpsPage_Loaded">
 
 
                 <RelativePanel>
@@ -583,7 +513,7 @@
 
             </PivotItem>
 
-            <PivotItem x:Name="CrashDumpsPivot" Header="Crash Dumps">
+            <PivotItem x:Name="CrashDumpsPivot" Header="Crash Dumps" Loaded="CrashDumpsPivot_Loaded">
                 <Grid x:Name="CrashDumpGrid">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"></RowDefinition>
@@ -657,7 +587,7 @@
                         <RelativePanel>
 
                             <TextBlock x:Name="Acknowledgements"
-                            
+                            TextWrapping="Wrap"
                            RelativePanel.AlignRightWithPanel="True"
                            RelativePanel.AlignLeftWithPanel="True"
                            Text=""
