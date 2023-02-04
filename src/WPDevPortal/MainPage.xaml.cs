@@ -39,6 +39,10 @@ using System.Xml.Linq;
 using System.Xml;
 using Windows.Security.Cryptography;
 using Microsoft.Toolkit.Uwp.UI.Controls;
+using Windows.Devices.Radios;
+using Windows.Devices.Enumeration;
+using Windows.Devices.Bluetooth;
+using System.ComponentModel;
 
 namespace WPDevPortal
 {
@@ -85,6 +89,8 @@ namespace WPDevPortal
         bool IsCrashDumpEnabled;
         PasswordVault PasswordStore = new PasswordVault();
         ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+
+        string WindowsEdition { get; set; }
         /// <summary>
         /// The main page constructor.
         /// </summary>
@@ -95,8 +101,9 @@ namespace WPDevPortal
 
                 this.InitializeComponent();
                 this.EnableDeviceControls(false);
+                rootPage = this;
                 //
-                // Hide ETW for now
+                // Hide Crash Dumps for now
                 EnablePivotPages(false);
                 // MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "CrashDumpsPage"));
                 if (AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Mobile")
@@ -107,6 +114,7 @@ namespace WPDevPortal
                 {
                     CloseBtn.Visibility = Visibility.Collapsed;
                 }
+
 
 
                 IsETWStarted = false;
@@ -125,11 +133,11 @@ namespace WPDevPortal
                     $"• SharpCompress archiver for Appx reading\n" +
                     $"• Various StackExchange pages\n\n" +
                     $"Thanks to BAstifan for contributions to development";
-                var str = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily;
+                WindowsEdition = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily;
                 string lastSavedAddress = LoadLastAddress();
                 if (lastSavedAddress == "NoAddress")
                 {
-                    if (str == "Windows.Desktop")
+                    if (WindowsEdition == "Windows.Desktop")
                     {
                         address.Text = @"http://127.0.0.1:50080";
                         WDPAddress = address.Text;
@@ -138,7 +146,7 @@ namespace WPDevPortal
                         WDPPass = "IJustNeedSomeTextHere";
                         connectToDevice.IsEnabled = true;
                     }
-                    else if (str == "Windows.Mobile")
+                    else if (WindowsEdition == "Windows.Mobile")
                     {
                         address.Text = @"https://127.0.0.1";
                         WDPAddress = address.Text;
@@ -166,7 +174,6 @@ namespace WPDevPortal
                     WDPPass = "IJustNeedSomeTextHere";
                     connectToDevice.IsEnabled = true;
                 }
-
 
 
             }
@@ -260,6 +267,7 @@ namespace WPDevPortal
 
                 this.EnableConnectionControls(false);
                 this.EnableDeviceControls(false);
+                ConnectionNoticeVisible = Visibility.Visible;
 
 
                 await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
@@ -305,17 +313,15 @@ namespace WPDevPortal
                                {
                                    commandOutput.Text = "";
                                });
-                sb.Append(this.commandOutput.Text);
-                sb.AppendLine("");
-                this.commandOutput.Text = sb.ToString();
+                
                 portal.ConnectionStatus += async (portal, connectArgs) =>
                 {
 
                     if (connectArgs.Status == DeviceConnectionStatus.Connected)
                     {
+                        RadioAccessStatus result = await Radio.RequestAccessAsync();
 
-                       // var token = processesAppsContainerScroll.RegisterPropertyChangedCallback(ScrollViewer.HorizontalOffsetProperty, OnScrollChangedChange);
-
+                        // var token = processesAppsContainerScroll.RegisterPropertyChangedCallback(ScrollViewer.HorizontalOffsetProperty, OnScrollChangedChange);
 
                         sb.Append("Connected to: ");
                         sb.AppendLine(portal.Address);
@@ -340,6 +346,17 @@ namespace WPDevPortal
                         BatteryState batteryResult = batteryStat.Result;
                         sb.Append("Battery Level: ");
                         sb.AppendLine($"{batteryResult.Level.ToString()}%");
+                        await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                               () =>
+                               {
+                                   sb.Append(this.commandOutput.Text);
+                                   sb.AppendLine("");
+
+
+                                   this.commandOutput.Text = sb.ToString();
+
+                               });
+
                         List<string> crashDumpList = new List<string>();
                         if (crashDumpList.Count > 0)
                         {
@@ -396,51 +413,66 @@ namespace WPDevPortal
 
                             portal.RealtimeEventsMessageReceived += Portal_RealtimeEventsMessageReceived;
                             // ETWLogger.Add($"[Timestamp]\n[ID] Provider\nValues\n\n");
-                            var ETWStart = portal.GetEtwProvidersAsync();
-                            ETWResult = ETWStart.Result;
-                            List<string> etwprovlist = new List<string>();
-                            foreach (var etw in ETWResult.Providers)
-                            {
-                                etwprovlist.Add(etw.Name);
-
-                            }
-                            etwprovlist.Sort();
-                            foreach (var prov in etwprovlist)
-                            {
-                                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
-                               () =>
-                               {
-                                   CrashAppList.Items.Add(prov);
-                               });
-                            }
+                          
 
                         });
 
-                        
+
                         isConnected = true;
                         // await Task.Run(() =>
                         //{
-
-                        FetchProcessInfo();
-                        FillInitialRealTimeData();
-                        FetchHWInfo();
-                        FetchKnownFolders();
-
-                        FetchWifiInformation();
-
+                        if (WDPAddress.Contains("127.0.0.1"))
+                        {
+                            FetchProcessInfo();
+                            FillInitialRealTimeData();
+                            FetchHWInfo();
+                            FetchKnownFolders();
+                            ETWSetup();
+                            FetchWifiInformation();
+                            GetRadioInfo();
+                            if (WDPAddress.Contains("127.0.0.1"))
+                            {
+                                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                                        () =>
+                                        {
+                                            CPUHeader.Text = $"Processor: {ProcessorName}";
+                                        });
+                            }
+                            // DisablePagesForXbox(true);
+                        }
+                        else
+                        {
+                            if (portal.DeviceFamily == "Windows.Xbox")
+                            {
+                                DisablePagesForXbox(true);
+                                FillInitialRealTimeData();
+                                FetchKnownFolders();
+                            }
+                            else
+                            {
+                                FetchProcessInfo();
+                                FillInitialRealTimeData();
+                                FetchHWInfo();
+                                FetchKnownFolders();
+                                ETWSetup();
+                                FetchWifiInformation();
+                            }
+                        }
                         //   });
 
 
                         /// Crash dumps for Windows 10 Mobile are limited to Insider builds.... I NEED to have a nicer way to check this...
                         /// Crash Dumps cause a crash on insider builds also, not sure why :(
 
-                        if (portal.DeviceFamily == "Windows.Mobile")
+                        if (portal.DeviceFamily == "Windows.Mobile" || portal.DeviceFamily == "Windows.Xbox")
                         {
 
                             await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                            () =>
                            {
                                MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "CrashDumpsPivot"));
+                               MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "CrashDumpsPage"));
+
                            });
 
                         }
@@ -522,6 +554,7 @@ namespace WPDevPortal
                         await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                               () =>
                               {
+                                 
                                   ProgBar.Visibility = Visibility.Collapsed;
                                   ProgBar.IsEnabled = false;
                                   ProgBar.IsIndeterminate = false;
@@ -539,10 +572,12 @@ namespace WPDevPortal
                                   {
                                       LocalAppsPanel.Visibility = Visibility.Collapsed;
                                   }
+                                  BTToggle.Toggled += BTToggle_Toggled;
                               });
                         SaveLastAddress(WDPAddress);
                         FinishedLoadingData = true;
-
+                        ConnectionNoticeVisible = Visibility.Collapsed;
+ 
 
                         Debug.WriteLine("Finished loading data");
 
@@ -554,9 +589,11 @@ namespace WPDevPortal
                         sb.AppendLine("Failed to connect to the device.");
                         sb.AppendLine($"Message: {connectArgs.Message}\n\nPhase: {connectArgs.Phase}");
                         connectToDevice.IsEnabled = true;
+                        ConnectionNoticeVisible = Visibility.Collapsed;
+
                     }
                 };
-
+               
                 try
                 {
                     // If the user wants to allow untrusted connections, make a call to GetRootDeviceCertificate
@@ -584,12 +621,14 @@ namespace WPDevPortal
                     ExceptionHelper.Exceptions.ThrownExceptionErrorExtended(exception);
                     //sb.AppendLine(exception.Message);
                     connectToDevice.IsEnabled = true;
+                    ConnectionNoticeVisible = Visibility.Collapsed;
+
                 }
 
                 this.commandOutput.Text = sb.ToString();
 
                 EnableConnectionControls(true);
-               // connectToDevice.IsEnabled = false;
+                // connectToDevice.IsEnabled = false;
             }
             catch (Exception ex)
             {
@@ -604,8 +643,63 @@ namespace WPDevPortal
                 connectedbox.Visibility = Visibility.Visible;
                 commandOutput.Text = ex.Message;
                 connectToDevice.IsEnabled = true;
+                ConnectionNoticeVisible = Visibility.Collapsed;
+
                 ExceptionHelper.Exceptions.ThrownExceptionErrorExtended(ex);
             }
+        }
+
+
+        private async void ETWSetup()
+        {
+            var ETWStart = portal.GetEtwProvidersAsync();
+            ETWResult = ETWStart.Result;
+            List<string> etwprovlist = new List<string>();
+            foreach (var etw in ETWResult.Providers)
+            {
+                etwprovlist.Add(etw.Name);
+
+            }
+            etwprovlist.Sort();
+            foreach (var prov in etwprovlist)
+            {
+                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+               () =>
+               {
+                   CrashAppList.Items.Add(prov);
+               });
+            }
+        }
+        private async void DisablePagesForXbox(bool IsDisabled)
+        {
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                              () =>
+                              {
+                                  if (IsDisabled == true)
+                                  {
+                                      // MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "ApplicationPivot"));
+                                      // MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "FilesPivot"));
+                                      MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "ProcessesPivot"));
+                                      // MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "PerfPivot"));
+                                      MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "DevicePivot"));
+                                      MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "WifiPivotItem"));
+                                      MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "CrashDumpsPage"));
+                                      MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "BluetoothPivotPage"));
+                                      MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "CrashDumpsPivot"));
+                                  }
+                                  else
+                                  {
+                                      MainPivot.Items.Add(MainPivot.Items.Single(p => ((PivotItem)p).Name == "ApplicationPivot"));
+                                      MainPivot.Items.Add(MainPivot.Items.Single(p => ((PivotItem)p).Name == "FilesPivot"));
+                                      MainPivot.Items.Add(MainPivot.Items.Single(p => ((PivotItem)p).Name == "ProcessesPivot"));
+                                      MainPivot.Items.Add(MainPivot.Items.Single(p => ((PivotItem)p).Name == "PerfPivot"));
+                                      MainPivot.Items.Add(MainPivot.Items.Single(p => ((PivotItem)p).Name == "DevicePivot"));
+                                      MainPivot.Items.Add(MainPivot.Items.Single(p => ((PivotItem)p).Name == "WifiPivotItem"));
+                                      MainPivot.Items.Add(MainPivot.Items.Single(p => ((PivotItem)p).Name == "CrashDumpsPivot"));
+                                      MainPivot.Items.Add(MainPivot.Items.Single(p => ((PivotItem)p).Name == "CrashDumpsPage"));
+                                      MainPivot.Items.Add(MainPivot.Items.Single(p => ((PivotItem)p).Name == "BluetoothPivotPage"));
+                                  }
+                              });
         }
 
         private async void Portal_RealtimeEventsMessageReceived(DevicePortal sender, WebSocketMessageReceivedEventArgs<EtwEvents> args)
@@ -629,12 +723,12 @@ namespace WPDevPortal
                     i = 0;
                     foreach (var elist in fetchedevents)
                     {
-
-
+                        
+                        
                         var etwTimestamp = DateTime.UtcNow;
-                        string etwprovider = elist.Provider;
+                        string etwprovider = elist.TaskName;
                         uint etwlevellog = elist.Level;
-                        ushort etwID = elist.ID;
+                        uint etwID = elist.PID;
                         string[] etwValues = elist.Values.ToArray();
                         Dictionary<string, string>.ValueCollection etwvalues = elist.Values;
                         ulong etwKeyword = elist.Keyword;
@@ -648,6 +742,7 @@ namespace WPDevPortal
 
                         foreach (string val in etwvalues)
                         {
+                            
                             valuesList.Add(val);
                         }
 
@@ -661,8 +756,10 @@ namespace WPDevPortal
                             }
                         }
 
+                        
+
                         ETW_LOGGER.Add($"[{etwTimestamp.ToString()}]\n" +
-                            $"[ID: {etwID.ToString()}] {etwprovider.ToString()}:\n{string.Join("\n", finalList)}\n\n");
+                            $"[PID: {etwID.ToString()}] {etwprovider.ToString()}:\n{string.Join("\n", finalList)}\n\n");
                         i++;
                         /* await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                                     () =>
@@ -696,6 +793,7 @@ namespace WPDevPortal
         public void timer_Tick(object sender, EventArgs e)
         {
             FetchPerfInfo();
+            
         }
 
         /// <summary>
@@ -1147,7 +1245,7 @@ namespace WPDevPortal
         private async void applicationLoadButton_Click(object sender, RoutedEventArgs e)
         {
             LoadApplication();
-            
+
 
 
 
@@ -1493,14 +1591,14 @@ namespace WPDevPortal
                                             $"Is XAP: {processItem.IsXAP}\n" +
                                             $"Is Running: {processItem.IsRunning}\n" +
                                             $"CPU Usage: {processItem.CpuUsage}%\n\n"
-                                        }); 
+                                        });
 
                                         if (processItem.IsRunning)
                                         {
                                             runningAmount++;
                                         }
 
-                                      
+
                                     }
 
                                     //Set Items Source
@@ -1520,12 +1618,12 @@ namespace WPDevPortal
         }
 
 
-       
-
-        
 
 
-       
+
+
+
+
         #endregion
 
 
@@ -1537,11 +1635,6 @@ namespace WPDevPortal
         {
             Task<SystemPerformanceInformation> perf = portal.GetSystemPerfAsync();
             perfResult = perf.Result;
-
-
-
-
-
 
 
             //Paging/Memory
@@ -1564,7 +1657,6 @@ namespace WPDevPortal
                 $"Pages Total: {pagesTotal}\n" +
                 $"Commit Limit: {commitLimit}\n" +
                 $"Total Installed Pages: {totalInstalledPages}\n\n";
-
 
 
         }
@@ -1845,6 +1937,7 @@ namespace WPDevPortal
             await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
                               () =>
                               {
+                                 
                                   GPUheader.Text += $" {gpuname}";
                               });
 
@@ -1904,6 +1997,7 @@ namespace WPDevPortal
             }
         }
 
+        public static string CPULoadStat { get; set; }
         /// <summary>
         /// 
         /// </summary>
@@ -1911,11 +2005,19 @@ namespace WPDevPortal
         /// <param name="e"></param>
         private async void UpdateRealTimeData(object sender, object e)
         {
+            CPULoadStat = "CPU Load:";
             if (isConnected == true)
             {
-                SystemPerformanceInformation perf = await portal.GetSystemPerfAsync();
 
-                // RealTimeData.RemoveAt(0);
+
+                try
+                {
+                    SystemPerformanceInformation perf = await portal.GetSystemPerfAsync();
+                    if (RealTimeData.Count != -1)
+                    {
+                        RealTimeData.RemoveAt(0);
+                    }
+                
                 var gpu = perf.GpuData.Adapters;
                 var network = perf.NetworkData;
                 uint pagedPoolPages = perf.PagedPoolPages;
@@ -1981,6 +2083,8 @@ namespace WPDevPortal
                 nonpaged = nonpaged < 0 ? 0 : nonpaged;
                 pagedpages = pagedpages < 0 ? 0 : pagedpages;
 
+               
+
                 RealTimeData.Add(new RealTimeDataItem()
                 {
                     Seconds = DateTime.Now.Second,
@@ -2004,6 +2108,13 @@ namespace WPDevPortal
                     TotalPages = totalpages
 
                 });
+                CPULoadStat = $"CPU Load: {cpuload}%";
+                }
+                catch (Exception ex)
+                {
+                    //Exceptions.ThrownExceptionErrorExtended(ex);
+                    
+                }
                 /// GPUUsageText.Text = $"Shared: {GPUMemShared.ToFileSize()}, Dedicated: {gpuSelfUsed}";
             }
         }
@@ -2054,6 +2165,7 @@ namespace WPDevPortal
 
         string newName;
         string newDescription;
+        public string ProcessorName;
         private Task<List<Device>> hardwareResult { get; set; }
         private async void FetchHWInfo()
         {
@@ -2065,16 +2177,20 @@ namespace WPDevPortal
 
             foreach (Device device in hardwareResult.Result)
             {
+                if (device.Class == "Processor")
+                {
+                    ProcessorName = device.FriendlyName;
+                }
 
                 ClassList.Add(device.Class);
 
-                
+
                 if (device.FriendlyName == "" | device.Description == "")
                 {
                     if (device.FriendlyName == "")
                     {
                         newName = "Unknown";
-                    } 
+                    }
                     if (device.Description == "")
                     {
                         newDescription = "Unknown";
@@ -2235,11 +2351,11 @@ namespace WPDevPortal
         /// 
         /// MUST CHANGE THESE BEFORE EACH PUBLIC GITHUB RELEASE
         /// </summary>
-        public static string CurrentBuildVersion = "1.0.16.0";
-        public static string PreviousBuildVersion = "1.0.15.0";
-        public static string NextBuildVersion = "1.0.17.0";
-        public static string UploadedFileName = "WPDevPortal_1.0.17.0_Test.zip";
-        public static string AppxUpdateName = "WPDevPortal_1.0.17.0_x86_x64_arm.appxbundle";
+        public static string CurrentBuildVersion = "1.0.18.0";
+        public static string PreviousBuildVersion = "1.0.17.0";
+        public static string NextBuildVersion = "1.0.19.0";
+        public static string UploadedFileName = "WPDevPortal_1.0.18.0_Test.zip";
+        public static string AppxUpdateName = "WPDevPortal_1.0.18.0_x86_x64_arm.appxbundle";
 
         public StorageFolder folder { get; set; }
         public StorageFile file { get; set; }
@@ -2255,6 +2371,7 @@ namespace WPDevPortal
             bool isNetworkConnected = NetworkInterface.GetIsNetworkAvailable();
             if (isNetworkConnected == true)
             {
+                UpdateBtn.Visibility = Visibility.Collapsed;
                 CheckForUpdate();
 
             }
@@ -2301,7 +2418,7 @@ namespace WPDevPortal
                     UpdateDetailsBox.Text += $"Current Build: {CurrentBuildVersion}\n";
                     UpdateDetailsBox.Text += $"Date Update Published: {latestRelease.PublishedAt}\n\n";
 
-                  
+
                     if (latestRelease.TagName == CurrentBuildVersion || latestRelease.TagName == PreviousBuildVersion)
                     {
                         UpdateDetailsBox.Text = "No Updated Found";
@@ -2314,7 +2431,7 @@ namespace WPDevPortal
                         UpdateDetailsBox.Text += $"Download URL: {UpdateURL}\n";
                         DLButton.Visibility = Visibility.Visible;
                         UpdateBtn.Visibility = Visibility.Collapsed;
-                    } 
+                    }
 
                 }
             }
@@ -3824,7 +3941,649 @@ namespace WPDevPortal
 
         }
 
+        #region Bluetooth
 
+        private class BTNetworkInfo
+        {
+            public string SSID { get; set; }
+            public string AuthenticationType { get; set; }
+            public string ProfileName { get; set; }
+            public bool IsConnectable { get; set; }
+            public bool IsConnected { get; set; }
+            public int Channel { get; set; }
+            public string CombinedInfo { get; set; }
+            public BitmapImage SignalImage { get; set; }
+        }
+
+        private MainPage rootPage;
+        private DeviceWatcher BTDeviceWatcher = null;
+        private DeviceWatcher deviceWatcher = null;
+        private TypedEventHandler<DeviceWatcher, DeviceInformation> handlerAdded = null;
+        private TypedEventHandler<DeviceWatcher, DeviceInformationUpdate> handlerUpdated = null;
+        private TypedEventHandler<DeviceWatcher, DeviceInformationUpdate> handlerRemoved = null;
+        private TypedEventHandler<DeviceWatcher, Object> handlerEnumCompleted = null;
+        private TypedEventHandler<DeviceWatcher, Object> handlerStopped = null;
+
+        public ObservableCollection<DeviceInformationDisplay> ResultCollection
+        {
+            get;
+            private set;
+        }
+
+        public async void GetRadioInfo()
+        {
+            try
+            {
+                // RadioAccessStatus result = await Radio.RequestAccessAsync();
+                IReadOnlyList<Radio> radios = await Radio.GetRadiosAsync();
+                Radio BluetoothRadio = radios.FirstOrDefault(radio => radio.Kind == RadioKind.Bluetooth);
+                //RadioAccessStatus btresult;
+                foreach (Radio module in radios)
+                {
+                    if (module.Kind == RadioKind.Bluetooth)
+                    {
+
+
+                        await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+                      () =>
+                      {
+
+                          if (module.State == RadioState.Off)
+                          {
+
+                              BTToggle.IsOn = false;
+
+                          }
+                          else
+                          {
+                              BTToggle.IsOn = true;
+                          }
+                      });
+                    }
+                }
+                ResultCollection = new ObservableCollection<DeviceInformationDisplay>();
+
+            }
+            catch (Exception ex)
+            {
+                ExceptionHelper.Exceptions.ThrownExceptionError(ex);
+            }
+
+        }
+
+        public bool IsWatcherStarted = false;
+        private void StartListeningForDevices()
+        {
+            try
+            {
+                ResultCollection.Clear();
+                Debug.WriteLine("Setting Device Info");
+                BTNetworksListView.IsEnabled = false;
+                DeviceSelectorInfo deviceSelectorInfo = Bluetooth;
+                Debug.WriteLine("Creating Watcher");
+
+                if (null == deviceSelectorInfo.Selector)
+                {
+                    // If the a pre-canned device class selector was chosen, call the DeviceClass overload
+                    BTDeviceWatcher = DeviceInformation.CreateWatcher(deviceSelectorInfo.DeviceClassSelector);
+                }
+                else if (deviceSelectorInfo.Kind == DeviceInformationKind.Unknown)
+                {
+                    // Use AQS string selector from dynamic call to a device api's GetDeviceSelector call
+                    // Kind will be determined by the selector
+                    BTDeviceWatcher = DeviceInformation.CreateWatcher(
+                        deviceSelectorInfo.Selector,
+                        null // don't request additional properties for this sample
+                        );
+                }
+                else
+                {
+                    // Kind is specified in the selector info
+                    BTDeviceWatcher = DeviceInformation.CreateWatcher(
+                        deviceSelectorInfo.Selector,
+                        null, // don't request additional properties for this sample
+                        deviceSelectorInfo.Kind);
+                }
+
+
+                /// BTDeviceWatcher = DeviceInformation.CreateWatcher(deviceSelectorInfo.Selector, null, deviceSelectorInfo.Kind);
+
+                // Hook up handlers for the watcher events before starting the watcher
+
+                handlerAdded = new TypedEventHandler<DeviceWatcher, DeviceInformation>(async (watcher, deviceInfo) =>
+                {
+                    // Since we have the collection databound to a UI element, we need to update the collection on the UI thread.
+                    await rootPage.Dispatcher.RunAsync(CoreDispatcherPriority.Low, () =>
+                        {
+                            Debug.WriteLine("Adding info to Collection");
+
+                            
+                            ResultCollection.Add(new DeviceInformationDisplay(deviceInfo));
+
+                            rootPage.NotifyUser(
+                                String.Format("{0} devices found.", ResultCollection.Count),
+                                NotifyType.StatusMessage);
+                        });
+                });
+                BTDeviceWatcher.Added += handlerAdded;
+                Debug.WriteLine("Watcher Handler Added");
+
+                IsWatcherStarted = true;
+                handlerUpdated = new TypedEventHandler<DeviceWatcher, DeviceInformationUpdate>(async (watcher, deviceInfoUpdate) =>
+                {
+                    // Since we have the collection databound to a UI element, we need to update the collection on the UI thread.
+                    await rootPage.Dispatcher.RunAsync(CoreDispatcherPriority.Low, () =>
+                        {
+                            // Find the corresponding updated DeviceInformation in the collection and pass the update object
+                            // to the Update method of the existing DeviceInformation. This automatically updates the object
+                            // for us.
+                            foreach (DeviceInformationDisplay deviceInfoDisp in ResultCollection)
+                            {
+                                if (deviceInfoDisp.Id == deviceInfoUpdate.Id)
+                                {
+                                   
+                                    deviceInfoDisp.Update(deviceInfoUpdate);
+                                    break;
+                                }
+                            }
+                        });
+                });
+                BTDeviceWatcher.Updated += handlerUpdated;
+
+                handlerRemoved = new TypedEventHandler<DeviceWatcher, DeviceInformationUpdate>(async (watcher, deviceInfoUpdate) =>
+                {
+                    // Since we have the collection databound to a UI element, we need to update the collection on the UI thread.
+                    await rootPage.Dispatcher.RunAsync(CoreDispatcherPriority.Low, () =>
+                        {
+                            // Find the corresponding DeviceInformation in the collection and remove it
+                            foreach (DeviceInformationDisplay deviceInfoDisp in ResultCollection)
+                            {
+                                if (deviceInfoDisp.Id == deviceInfoUpdate.Id)
+                                {
+                                    ResultCollection.Remove(deviceInfoDisp);
+                                    break;
+                                }
+                            }
+
+                            rootPage.NotifyUser(
+                                String.Format("{0} devices found.", ResultCollection.Count),
+                                NotifyType.StatusMessage);
+                        });
+                });
+                BTDeviceWatcher.Removed += handlerRemoved;
+
+                handlerEnumCompleted = new TypedEventHandler<DeviceWatcher, Object>(async (watcher, obj) =>
+                {
+                    await rootPage.Dispatcher.RunAsync(CoreDispatcherPriority.Low, () =>
+                    {
+                        rootPage.NotifyUser(
+                            String.Format("{0} devices found. Enumeration completed. Watching for updates...", ResultCollection.Count),
+                            NotifyType.StatusMessage);
+                    });
+                });
+                BTDeviceWatcher.EnumerationCompleted += handlerEnumCompleted;
+
+                handlerStopped = new TypedEventHandler<DeviceWatcher, Object>(async (watcher, obj) =>
+                {
+                    await rootPage.Dispatcher.RunAsync(CoreDispatcherPriority.Low, () =>
+                    {
+                        rootPage.NotifyUser(
+                            String.Format("{0} devices found. Searching {1}.",
+                                ResultCollection.Count,
+                                DeviceWatcherStatus.Aborted == watcher.Status ? "aborted" : "stopped"),
+                            NotifyType.StatusMessage);
+                    });
+                });
+                BTDeviceWatcher.Stopped += handlerStopped;
+
+                rootPage.NotifyUser("Starting Watcher...", NotifyType.StatusMessage);
+                BTDeviceWatcher.Start();
+
+               
+                // stopWatcherButton.IsEnabled = true;
+
+            }
+            catch (Exception ex)
+            {
+
+                Exceptions.ThrownExceptionError(ex);
+            }
+        }
+
+        private async void StopListeningForDevices()
+        {
+            if (null != BTDeviceWatcher)
+            {
+                // First unhook all event handlers except the stopped handler. This ensures our
+                // event handlers don't get called after stop, as stop won't block for any "in flight" 
+                // event handler calls.  We leave the stopped handler as it's guaranteed to only be called
+                // once and we'll use it to know when the query is completely stopped. 
+                BTDeviceWatcher.Added -= handlerAdded;
+                BTDeviceWatcher.Updated -= handlerUpdated;
+                BTDeviceWatcher.Removed -= handlerRemoved;
+                BTDeviceWatcher.EnumerationCompleted -= handlerEnumCompleted;
+
+                if (DeviceWatcherStatus.Started == BTDeviceWatcher.Status ||
+                    DeviceWatcherStatus.EnumerationCompleted == BTDeviceWatcher.Status)
+                {
+                    BTDeviceWatcher.Stop();
+                    IsWatcherStarted = false;
+                    BTNetworksListView.IsEnabled = true;
+
+
+                }
+            }
+        }
+
+        private void BTRescanNetworks_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Debug.WriteLine("Loading StartListeningForDevices()");
+                StartListeningForDevices();
+                BTRescanNetworks.Visibility = Visibility.Collapsed;
+                BTStopScanNetworks.Visibility = Visibility.Visible;
+
+
+            }
+            catch (Exception ex)
+            {
+                Exceptions.ThrownExceptionError(ex);
+            }
+        }
+        private void BTStopScanNetworks_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                StopListeningForDevices();
+                BTRescanNetworks.Visibility = Visibility.Visible;
+                BTStopScanNetworks.Visibility = Visibility.Collapsed;
+            }
+            catch (Exception ex)
+            {
+                Exceptions.ThrownExceptionError(ex);
+            }
+
+        }
+
+        private void BluetoothPivotPage_Loaded(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void BTAdaptersCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
+
+        private void BTWindowClose_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private async void BTToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (BTToggle.IsOn == true)
+            {
+                IReadOnlyList<Radio> radios = await Radio.GetRadiosAsync();
+                Radio BluetoothRadio = radios.FirstOrDefault(radio => radio.Kind == RadioKind.Bluetooth);
+                //RadioAccessStatus btresult;
+                foreach (Radio module in radios)
+                {
+                    if (module.Kind == RadioKind.Bluetooth)
+                    {
+                        await module.SetStateAsync(RadioState.On);
+
+                    }
+                }
+            }
+            if (BTToggle.IsOn == false)
+            {
+                IReadOnlyList<Radio> radios = await Radio.GetRadiosAsync();
+                Radio BluetoothRadio = radios.FirstOrDefault(radio => radio.Kind == RadioKind.Bluetooth);
+                //RadioAccessStatus btresult;
+                foreach (Radio module in radios)
+                {
+                    if (module.Kind == RadioKind.Bluetooth)
+                    {
+                        await module.SetStateAsync(RadioState.Off);
+
+                    }
+                }
+            }
+        }
+
+        public async void ViewBTCurrentConnection()
+        {
+
+        }
+
+
+        private async void PairDeviceBtn_Click(object sender, RoutedEventArgs e)
+        {
+            rootPage.NotifyUser("Pairing started. Please wait...", NotifyType.StatusMessage);
+
+            DeviceInformationDisplay deviceInfoDisp = BTNetworksListView.SelectedItem as DeviceInformationDisplay;
+
+            DevicePairingResult dpr = await deviceInfoDisp.DeviceInformation.Pairing.PairAsync();
+
+            rootPage.NotifyUser(
+                "Pairing result = " + dpr.Status.ToString(),
+                dpr.Status == DevicePairingResultStatus.Paired ? NotifyType.StatusMessage : NotifyType.ErrorMessage);
+
+
+            PairDeviceBtn.Visibility = Visibility.Collapsed;
+            UnpairDeviceBtn.Visibility = Visibility.Visible;
+
+
+            //UpdatePairingButtons();
+        }
+
+        private async void UnpairDeviceBtn_Click(object sender, RoutedEventArgs e)
+        {
+            rootPage.NotifyUser("Unpairing started. Please wait...", NotifyType.StatusMessage);
+
+            DeviceInformationDisplay deviceInfoDisp = BTNetworksListView.SelectedItem as DeviceInformationDisplay;
+
+            DeviceUnpairingResult dupr = await deviceInfoDisp.DeviceInformation.Pairing.UnpairAsync();
+
+            rootPage.NotifyUser(
+                "Unpairing result = " + dupr.Status.ToString(),
+                dupr.Status == DeviceUnpairingResultStatus.Unpaired ? NotifyType.StatusMessage : NotifyType.ErrorMessage);
+
+
+
+
+            //ResultCollection.Clear();
+            BTNetworksListView.SelectedItem = null;
+            PairDeviceBtn.Visibility = Visibility.Collapsed;
+            UnpairDeviceBtn.Visibility = Visibility.Collapsed;
+
+            //resultsListView.IsEnabled = true;
+        }
+
+        private void BTNetworksListView_ItemClick(object sender, SelectionChangedEventArgs e)
+        {
+            if (BTNetworksListView.SelectedItem == null)
+            {
+            }
+            else
+            {
+
+                UpdatePairingButtons();
+            }
+        }
+
+        private void UpdatePairingButtons()
+        {
+            DeviceInformationDisplay deviceInfoDisp = (DeviceInformationDisplay)BTNetworksListView.SelectedItem;
+            Debug.WriteLine(deviceInfoDisp.Name);
+            if (null != deviceInfoDisp &&
+                deviceInfoDisp.DeviceInformation.Pairing.CanPair &&
+                !deviceInfoDisp.DeviceInformation.Pairing.IsPaired)
+            {
+                PairDeviceBtn.Visibility = Visibility.Visible;
+                UnpairDeviceBtn.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                PairDeviceBtn.Visibility = Visibility.Collapsed;
+                UnpairDeviceBtn.Visibility = Visibility.Visible;
+
+            }
+
+            if (null != deviceInfoDisp &&
+                deviceInfoDisp.DeviceInformation.Pairing.IsPaired)
+            {
+                PairDeviceBtn.Visibility = Visibility.Collapsed;
+                UnpairDeviceBtn.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                PairDeviceBtn.Visibility = Visibility.Visible;
+                UnpairDeviceBtn.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        public enum NotifyType
+        {
+            StatusMessage,
+            ErrorMessage
+        };
+        public void NotifyUser(string strMessage, NotifyType type)
+        {
+            switch (type)
+            {
+                case NotifyType.StatusMessage:
+                    // StatusBorder.Background = new SolidColorBrush(Windows.UI.Colors.Green);
+                    break;
+                case NotifyType.ErrorMessage:
+                    //StatusBorder.Background = new SolidColorBrush(Windows.UI.Colors.Red);
+                    break;
+            }
+            BTAdapterInfoText.Text = strMessage;
+
+            // Collapse the StatusBlock if it has no text to conserve real estate.
+            //StatusBorder.Visibility = (StatusBlock.Text != String.Empty) ? Visibility.Visible : Visibility.Collapsed;
+            if (BTAdapterInfoText.Text != String.Empty)
+            {
+                // StatusBorder.Visibility = Visibility.Visible;
+                // StatusPanel.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                // StatusBorder.Visibility = Visibility.Collapsed;
+                // StatusPanel.Visibility = Visibility.Collapsed;
+            }
+        }
+
+
+        public class DeviceInformationDisplay : INotifyPropertyChanged
+        {
+            private DeviceInformation deviceInfo;
+
+            public DeviceInformationDisplay(DeviceInformation deviceInfoIn)
+            {
+                deviceInfo = deviceInfoIn;
+                UpdateGlyphBitmapImage();
+            }
+
+            public DeviceInformationKind Kind
+            {
+                get
+                {
+                    return deviceInfo.Kind;
+                }
+            }
+
+            public string Id
+            {
+                get
+                {
+                    return deviceInfo.Id;
+                }
+            }
+
+            public string Name
+            {
+                get
+                {
+                    return deviceInfo.Name;
+                }
+                set
+                {
+
+                }
+            }
+
+            public BitmapImage GlyphBitmapImage
+            {
+                get;
+                private set;
+            }
+
+            public bool CanPair
+            {
+                get
+                {
+                    return deviceInfo.Pairing.CanPair;
+                }
+            }
+
+            public bool IsPaired
+            {
+                get
+                {
+                    return deviceInfo.Pairing.IsPaired;
+                }
+            }
+
+            public IReadOnlyDictionary<string, object> Properties
+            {
+                get
+                {
+                    return deviceInfo.Properties;
+                }
+            }
+
+            public DeviceInformation DeviceInformation
+            {
+                get
+                {
+                    return deviceInfo;
+                }
+
+                private set
+                {
+                    deviceInfo = value;
+                }
+            }
+
+            public void Update(DeviceInformationUpdate deviceInfoUpdate)
+            {
+                deviceInfo.Update(deviceInfoUpdate);
+
+                OnPropertyChanged("Kind");
+                OnPropertyChanged("Id");
+                OnPropertyChanged("Name");
+                OnPropertyChanged("DeviceInformation");
+                OnPropertyChanged("CanPair");
+                OnPropertyChanged("IsPaired");
+
+                UpdateGlyphBitmapImage();
+            }
+
+            private async void UpdateGlyphBitmapImage()
+            {
+                DeviceThumbnail deviceThumbnail = await deviceInfo.GetGlyphThumbnailAsync();
+                BitmapImage glyphBitmapImage = new BitmapImage();
+                await glyphBitmapImage.SetSourceAsync(deviceThumbnail);
+                GlyphBitmapImage = glyphBitmapImage;
+                OnPropertyChanged("GlyphBitmapImage");
+            }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+            protected void OnPropertyChanged(string name)
+            {
+                PropertyChangedEventHandler handler = PropertyChanged;
+                if (handler != null)
+                {
+                    handler(this, new PropertyChangedEventArgs(name));
+                }
+            }
+        }
+
+
+
+        public class DeviceSelectorInfo
+        {
+            public DeviceSelectorInfo()
+            {
+                Kind = DeviceInformationKind.Unknown;
+                DeviceClassSelector = DeviceClass.All;
+            }
+
+            public string DisplayName
+            {
+                get;
+                set;
+            }
+
+            public DeviceClass DeviceClassSelector
+            {
+                get;
+                set;
+            }
+
+            public DeviceInformationKind Kind
+            {
+                get;
+                set;
+            }
+
+            public string Selector
+            {
+                get;
+                set;
+            }
+        }
+
+
+        public static DeviceSelectorInfo Bluetooth
+        {
+            get
+            {
+                // Currently Bluetooth APIs don't provide a selector to get ALL devices that are both paired and non-paired.  Typically you wouldn't need this for common scenarios, but it's convenient to demonstrate the
+                // various sample scenarios. 
+                return new DeviceSelectorInfo() { DisplayName = "Bluetooth", Selector = "System.Devices.Aep.ProtocolId:=\"{e0cbf06c-cd8b-4647-bb8a-263b43f0f974}\"", Kind = DeviceInformationKind.AssociationEndpoint };
+            }
+        }
+
+        public static DeviceSelectorInfo BluetoothUnpairedOnly
+        {
+            get
+            {
+                return new DeviceSelectorInfo() { DisplayName = "Bluetooth (unpaired)", Selector = BluetoothDevice.GetDeviceSelectorFromPairingState(false) };
+            }
+        }
+
+        public static DeviceSelectorInfo BluetoothPairedOnly
+        {
+            get
+            {
+                return new DeviceSelectorInfo() { DisplayName = "Bluetooth (paired)", Selector = BluetoothDevice.GetDeviceSelectorFromPairingState(true) };
+            }
+        }
+
+        public static DeviceSelectorInfo BluetoothLE
+        {
+            get
+            {
+                // Currently Bluetooth APIs don't provide a selector to get ALL devices that are both paired and non-paired.  Typically you wouldn't need this for common scenarios, but it's convenient to demonstrate the
+                // various sample scenarios. 
+                return new DeviceSelectorInfo() { DisplayName = "Bluetooth LE", Selector = "System.Devices.Aep.ProtocolId:=\"{bb7bb05e-5972-42b5-94fc-76eaa7084d49}\"", Kind = DeviceInformationKind.AssociationEndpoint };
+            }
+        }
+
+        public static DeviceSelectorInfo BluetoothLEUnpairedOnly
+        {
+            get
+            {
+                return new DeviceSelectorInfo() { DisplayName = "Bluetooth LE (unpaired)", Selector = BluetoothLEDevice.GetDeviceSelectorFromPairingState(false) };
+            }
+        }
+
+        public static DeviceSelectorInfo BluetoothLEPairedOnly
+        {
+            get
+            {
+                return new DeviceSelectorInfo() { DisplayName = "Bluetooth LE (paired)", Selector = BluetoothLEDevice.GetDeviceSelectorFromPairingState(true) };
+            }
+        }
+
+
+
+        #endregion
 
 
         public string RetrieveCapability(string cap)
@@ -4179,13 +4938,14 @@ namespace WPDevPortal
             dialog.VerticalContentAlignment = VerticalAlignment.Center;
             dialog.IsPrimaryButtonEnabled = false;
             dialog.IsSecondaryButtonEnabled = false;
+
             if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             {
                 await Task.Delay(2000);
                 Windows.UI.Xaml.Application.Current.Exit();
 
             }
-            
+
         }
 
         private void Dialog_SecondaryButtonClick4(ContentDialog sender, ContentDialogButtonClickEventArgs args)
@@ -4196,8 +4956,8 @@ namespace WPDevPortal
         private void MainPivot_Loaded(object sender, RoutedEventArgs e)
         {
             ConnectionNoticeVisible = Visibility.Collapsed;
-           this.Bindings.Update();
-            
+            this.Bindings.Update();
+
         }
 
         private void ApplicationPivot_Loaded(object sender, RoutedEventArgs e)
@@ -4241,6 +5001,14 @@ namespace WPDevPortal
             ConnectionNoticeVisible = Visibility.Collapsed;
             this.Bindings.Update();
         }
+
+
+        private void TestFunction()
+        {
+
+        }
+
+
     }
 }
 

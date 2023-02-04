@@ -13,6 +13,38 @@
     mc:Ignorable="d" Background="#FF1E1E1E">
     <Page.Resources>
         <CollectionViewSource x:Key="cvs" x:Name="cvs" IsSourceGrouped="True"/>
+
+        <DataTemplate x:Key="ResultsListViewTemplate">
+            <Grid Margin="5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*" MinWidth="100"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Height="40" Width="40" Margin="5" VerticalAlignment="Center">
+                    <Image Source="{Binding Path=GlyphBitmapImage}"
+                           Stretch="UniformToFill"/>
+                </Border>
+                <Border Grid.Column="1" Margin="5">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Name:" Margin="0,0,5,0"/>
+                            <TextBlock Text="{Binding Path=Name}" FontWeight="Bold" TextWrapping="WrapWholeWords"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Paired:" Margin="0,5,5,0"/>
+                            <CheckBox IsChecked="{Binding Path=IsPaired}" IsHitTestVisible="False" IsTapEnabled="False" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Id:" Margin="0,0,5,0"/>
+                            <TextBlock Text="{Binding Path=Id}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+
     </Page.Resources>
     <Grid>
         <Grid Canvas.ZIndex="300" Visibility="{x:Bind ConnectionNoticeVisible, Mode=OneWay}" VerticalAlignment="Stretch" Grid.RowSpan="3">
@@ -265,16 +297,18 @@
                         <RelativePanel Margin="12,0,12,0">
 
                             <TextBox x:Name="CPUHeader" Text="Processor:"  RelativePanel.AlignTopWithPanel="True" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Background="#FF252526" Margin="-14,5,-15,5" IsDoubleTapEnabled="False" IsReadOnly="True" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False" BorderBrush="{x:Null}"/>
-                            <qc:SerialChart x:Name="CPUGraph" IsHitTestVisible="False"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="CPUHeader" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="CPULoad" PlotAreaBackground="{x:Null}" AxisForeground="White"  GridStroke="{x:Null}">
+                            <qc:SerialChart x:Name="CPUGraph" IsHitTestVisible="False"  RelativePanel.AlignLeftWithPanel="True" MinimumValueGridStep="20" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="CPUHeader" DataSource="{Binding RealTimeData}" Height="200"  PlotAreaBackground="{x:Null}" AxisForeground="White" GridStroke="{x:Null}">
                                 <qc:SerialChart.Graphs>
-                                    <qc:LineGraph Title="CPU Load" ValueMemberPath="CPULoad" Brush="{ThemeResource SystemAccentColor}"/>
+                                    <qc:LineGraph x:Name="CPULoadText" Title="CPU Load (%)" ValueMemberPath="CPULoad" Brush="{ThemeResource SystemAccentColor}">
+                                       
+                                    </qc:LineGraph>
                                 </qc:SerialChart.Graphs>
                             </qc:SerialChart>
                             <TextBox x:Name="GPUheader" Text="GPU:" RelativePanel.Below="CPUGraph"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="true" Background="#FF252526" Margin="-14,5,-15,5" IsDoubleTapEnabled="False" IsReadOnly="True" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False" BorderBrush="{x:Null}"/>
                             <TextBlock x:Name="GPUUsageText" RelativePanel.AlignLeftWithPanel="True" Visibility="Collapsed"  RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="GPUheader" Margin="5,8,5,5"/>
-                            <qc:SerialChart x:Name="GPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" IsHitTestVisible="False" RelativePanel.Below="GPUUsageText" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="GPUUsedTotal" PlotAreaBackground="{x:Null}" AxisForeground="White" GridStroke="{x:Null}">
+                            <qc:SerialChart x:Name="GPUGraph" RelativePanel.AlignLeftWithPanel="True" MinimumValueGridStep="20" RelativePanel.AlignRightWithPanel="True" IsHitTestVisible="False" RelativePanel.Below="GPUUsageText" DataSource="{Binding RealTimeData}" Height="200"  PlotAreaBackground="{x:Null}" AxisForeground="White" GridStroke="{x:Null}">
                                 <qc:SerialChart.Graphs >
-                                    <qc:LineGraph Title="X: GPU Used (MB) | Y: GPU Load (%)" ValueMemberPath="GPULoad" Brush="{ThemeResource SystemAccentColor}" />
+                                    <qc:LineGraph Title="GPU Load (%)" ValueMemberPath="GPULoad" Brush="{ThemeResource SystemAccentColor}" />
 
 
                                 </qc:SerialChart.Graphs>
@@ -282,7 +316,7 @@
 
 
                             <TextBox x:Name="IOHeader" Text="IO:"  RelativePanel.Below="GPUGraph" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" Background="#FF252526" Margin="-14,5,-15,5" IsDoubleTapEnabled="False" IsReadOnly="True" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False" BorderBrush="{x:Null}"/>
-                            <qc:SerialChart x:Name="IOData" IsHitTestVisible="False"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="IOHeader" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="IORead" PlotAreaBackground="{x:Null}" AxisForeground="White"  GridStroke="{x:Null}">
+                            <qc:SerialChart x:Name="IOData" IsHitTestVisible="False" MinimumValueGridStep="20" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="IOHeader" DataSource="{Binding RealTimeData}" Height="200" PlotAreaBackground="{x:Null}" AxisForeground="White"  GridStroke="{x:Null}">
                                 <qc:SerialChart.Graphs >
                                     <qc:LineGraph Title="IO Read (MB)" ValueMemberPath="IORead" Brush="{ThemeResource SystemAccentColor}"/>
                                     <qc:LineGraph Title="IO Write (MB)" ValueMemberPath="IOWrite"/>
@@ -290,7 +324,7 @@
                                 </qc:SerialChart.Graphs>
                             </qc:SerialChart>
                             <TextBox x:Name="Netheader" Text="Network:"  RelativePanel.Below="IOData"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True"  Background="#FF252526" Margin="-14,5,-15,5" IsDoubleTapEnabled="False" IsReadOnly="True" IsHoldingEnabled="False"   IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False"/>
-                            <qc:SerialChart x:Name="NetData" IsHitTestVisible="False"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="Netheader" DataSource="{Binding RealTimeData}" Height="200" CategoryValueMemberPath="NetRead" PlotAreaBackground="{x:Null}" AxisForeground="White"  GridStroke="{x:Null}">
+                            <qc:SerialChart x:Name="NetData" IsHitTestVisible="False"  RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="Netheader" DataSource="{Binding RealTimeData}" Height="200" PlotAreaBackground="{x:Null}" AxisForeground="White"  GridStroke="{x:Null}">
                                 <qc:SerialChart.Graphs >
                                     <qc:LineGraph Title="Net Read (KB)" ValueMemberPath="NetRead" Brush="{ThemeResource SystemAccentColor}"/>
                                     <qc:LineGraph Title="Net Write (KB)" ValueMemberPath="NetWrite"/>
@@ -416,7 +450,60 @@
                 </Grid>
 
             </PivotItem>
+            <PivotItem x:Name="BluetoothPivotPage" Header="Bluetooth" Loaded="BluetoothPivotPage_Loaded">
+                <Grid>
+                    <RelativePanel>
+                        <ToggleSwitch x:Name="BTToggle" RelativePanel.AlignLeftWithPanel="True" OnContent="Enabled" OffContent="Disabled" Header="Adapter Power"/>
+                        <TextBlock x:Name="BTAdapterInfoText" Text="" TextWrapping="Wrap" RelativePanel.AlignLeftWithPanel="True" HorizontalAlignment="Stretch" RelativePanel.Below="BTToggle" RelativePanel.AlignRightWith="BTRescanNetworks" Margin="5,12,85,5"></TextBlock>
+                        
+                        
+                        <Button x:Name="BTRescanNetworks" Content="Search Devices" Click="BTRescanNetworks_Click"  RelativePanel.AlignRightWithPanel="True" Margin="5,15,5,0"></Button>
+                        <Button x:Name="BTStopScanNetworks" Content="Stop Searching" Visibility="Collapsed" Click="BTStopScanNetworks_Click"  RelativePanel.AlignRightWithPanel="True" Margin="5,15,5,0"></Button>
+                        <Button x:Name="PairDeviceBtn" Click="PairDeviceBtn_Click" Visibility="Collapsed" Content="Pair" RelativePanel.Below="BTToggle" RelativePanel.AlignRightWithPanel="True" RelativePanel.AlignLeftWith="BTRescanNetworks" HorizontalAlignment="Stretch" Padding="5,5,5,5"/>
+                        <Button x:Name="UnpairDeviceBtn" Click="UnpairDeviceBtn_Click" Content="Unpair" Visibility="Collapsed" RelativePanel.Below="BTToggle" RelativePanel.AlignRightWithPanel="True" RelativePanel.AlignLeftWith="BTRescanNetworks" HorizontalAlignment="Stretch" Padding="5,5,5,5"/>
 
+                        <ListView x:Name="BTCurrentlyConnectedInfo" IsItemClickEnabled="True" ItemClick="{x:Bind ViewBTCurrentConnection}" RelativePanel.AlignLeftWithPanel="True" IsHitTestVisible="true" RelativePanel.AlignRightWithPanel="True"  RelativePanel.Below="BTRescanNetworks"  Margin="-10,10,-10,5" BorderBrush="#FF333337"
+                                  ItemTemplate="{StaticResource ResultsListViewTemplate}"
+                                  >
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"></Setter>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            
+                        </ListView>
+
+                        <TextBox x:Name="BTTextBox" Text="Devices" RelativePanel.AlignLeftWithPanel="True" RelativePanel.Below="BTAdapterInfoText" IsReadOnly="True"  RelativePanel.AlignRightWithPanel="True" Foreground="White" BorderBrush="{x:Null}" Background="#FF252526" Margin="-14,10,-15,0" IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False" ManipulationMode="None"  IsHitTestVisible="False"/>
+                        <ProgressBar x:Name="BTProgress" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="BTTextBox" Margin="-12,0,-12,0" MinHeight="5" Background="{x:Null}"/>
+
+
+
+                        <ListView x:Name="BTNetworksListView" SelectionChanged="BTNetworksListView_ItemClick" RelativePanel.AlignLeftWithPanel="True"  RelativePanel.AlignRightWithPanel="True" RelativePanel.Below="BTProgress" RelativePanel.AlignBottomWithPanel="True" Margin="5,5,5,5"
+                                  ItemTemplate="{StaticResource ResultsListViewTemplate}"
+                                  ItemsSource="{Binding Path=ResultCollection}">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"></Setter>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+
+                            
+                        </ListView>
+
+
+
+                    </RelativePanel>
+                    <RelativePanel x:Name="BTInfoWindow" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"  Margin="20,0,20,0" BorderBrush="Black" BorderThickness="1,1,1,1" Background="#FF1E1E1E">
+                        <TextBlock x:Name="BTConnectionLabel" Text="" RelativePanel.AlignLeftWithPanel="True" RelativePanel.LeftOf="BTWindowClose" Margin="5,5,10,5" FontSize="12"></TextBlock>
+                        <Button x:Name="BTWindowClose" RelativePanel.AlignRightWithPanel="True" Click="BTWindowClose_Click">
+                            <SymbolIcon Symbol="Cancel"/>
+                        </Button>
+                        <TextBlock x:Name="BTConnectionDetails" RelativePanel.Below="BTConnectionLabel" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True" RelativePanel.AlignBottomWithPanel="True" Margin="5,5,5,5"></TextBlock>
+                    </RelativePanel>
+                </Grid>
+                
+                
+            </PivotItem>
 
             <PivotItem x:Name="CrashDumpsPage" Header="Event Tracing" Loaded="CrashDumpsPage_Loaded">
 
@@ -634,6 +721,7 @@
                     </ScrollViewer>
                 </Grid>
             </PivotItem>
+            
         </Pivot>
         <Button x:Name="CloseBtn"  Click="Close_Click" FontSize="12" Content="&#xE106;"  FontFamily="Segoe MDL2 Assets" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,4,4,0" Background="#FF333337" BorderBrush="{x:Null}" Foreground="{ThemeResource SystemAccentColorLight1}"/>
     </Grid>

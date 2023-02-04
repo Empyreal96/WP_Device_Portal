@@ -3,7 +3,7 @@
 		 xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" 
 		 xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" 
 		 xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" IgnorableNamespaces="uap mp rescap">
-  <Identity Name="WPDevPortal" Publisher="CN=Empyreal" Version="1.0.17.0" />
+  <Identity Name="WPDevPortal" Publisher="CN=Empyreal" Version="1.0.18.0" />
   <mp:PhoneIdentity PhoneProductId="cfc861bb-9af2-4b44-9725-d0a0e23ed4b7" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>WPDevPortal</DisplayName>
@@ -36,5 +36,7 @@
     <uap:Capability Name="enterpriseAuthentication"/>
     <Capability Name="internetClientServer"/>
   <DeviceCapability Name="wiFiControl" />
+    <DeviceCapability Name="bluetooth"/>
+    <DeviceCapability Name="radios"/>
   </Capabilities>
 </Package>
