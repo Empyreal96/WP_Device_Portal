@@ -2354,8 +2354,8 @@ namespace WPDevPortal
         public static string CurrentBuildVersion = "1.0.18.0";
         public static string PreviousBuildVersion = "1.0.17.0";
         public static string NextBuildVersion = "1.0.19.0";
-        public static string UploadedFileName = "WPDevPortal_1.0.18.0_Test.zip";
-        public static string AppxUpdateName = "WPDevPortal_1.0.18.0_x86_x64_arm.appxbundle";
+        public static string UploadedFileName = "WPDevPortal_1.0.19.0_Test.zip";
+        public static string AppxUpdateName = "WPDevPortal_1.0.19.0_x86_x64_arm.appxbundle";
 
         public StorageFolder folder { get; set; }
         public StorageFile file { get; set; }
