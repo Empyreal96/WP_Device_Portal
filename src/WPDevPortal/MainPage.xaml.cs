@@ -106,14 +106,17 @@ namespace WPDevPortal
                 // Hide Crash Dumps for now
                 EnablePivotPages(false);
                 // MainPivot.Items.Remove(MainPivot.Items.Single(p => ((PivotItem)p).Name == "CrashDumpsPage"));
-                if (AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Mobile")
-                {
-                    CloseBtn.Visibility = Visibility.Visible;
-                }
-                else
-                {
-                    CloseBtn.Visibility = Visibility.Collapsed;
-                }
+                /* if (AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Mobile")
+                 {
+                     CloseBtn.Visibility = Visibility.Visible;
+                 }
+                 else
+                 {
+                     CloseBtn.Visibility = Visibility.Collapsed;
+                 } */
+
+                CloseBtn.Visibility = Visibility.Visible;
+
 
 
 
@@ -1856,11 +1859,6 @@ namespace WPDevPortal
 
         }
         #endregion
-
-
-
-
-
 
 
 
@@ -4895,28 +4893,49 @@ namespace WPDevPortal
         {
 
 
+            /* 
+             StackPanel Panel = new StackPanel();
 
-            StackPanel Panel = new StackPanel();
+             TextBlock nameHeader = new TextBlock();
+             nameHeader.Margin = new Thickness(5, 5, 5, 5);
+             nameHeader.Text = $"Quit application?";
+             nameHeader.HorizontalAlignment = HorizontalAlignment.Stretch;
+             Panel.Children.Add(nameHeader);
+             ContentDialog dialog = new ContentDialog();
+             dialog.Content = Panel;
+             //dialog.VerticalContentAlignment = VerticalAlignment.Center;
+             dialog.HorizontalContentAlignment = HorizontalAlignment.Center;
+             //dialog.HorizontalAlignment = HorizontalAlignment.Center;
+             //dialog.VerticalAlignment = VerticalAlignment.Center;
 
-            TextBlock nameHeader = new TextBlock();
-            nameHeader.Margin = new Thickness(5, 5, 5, 5);
-            nameHeader.Text = $"Quit application?";
-            nameHeader.HorizontalAlignment = HorizontalAlignment.Stretch;
-            Panel.Children.Add(nameHeader);
-            ContentDialog dialog = new ContentDialog();
-            dialog.Content = Panel;
-            dialog.VerticalContentAlignment = VerticalAlignment.Center;
-            dialog.IsSecondaryButtonEnabled = true;
-            dialog.PrimaryButtonText = "Confirm";
-            dialog.PrimaryButtonClick += Dialog_PrimaryButtonClick4;
-            dialog.SecondaryButtonText = "Cancel";
-            dialog.SecondaryButtonClick += Dialog_SecondaryButtonClick4;
+             dialog.IsSecondaryButtonEnabled = true;
+             dialog.PrimaryButtonText = "Confirm";
+             dialog.PrimaryButtonClick += Dialog_PrimaryButtonClick4;
+             dialog.SecondaryButtonText = "Cancel";
+             dialog.SecondaryButtonClick += Dialog_SecondaryButtonClick4;
 
-            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+
+
+             if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+             {
+
+
+             } */
+
+            MessageDialog dialog = new MessageDialog("Quit application?");
+            dialog.Commands.Add(new UICommand("Yes", null));
+            dialog.Commands.Add(new UICommand("No", null));
+            dialog.DefaultCommandIndex = 0;
+            dialog.CancelCommandIndex = 1;
+            var cmd = await dialog.ShowAsync();
+
+            if (cmd.Label == "Yes")
             {
-
-
+                
+                Windows.UI.Xaml.Application.Current.Exit();
             }
+
+
         }
 
         private async void Dialog_PrimaryButtonClick4(ContentDialog sender, ContentDialogButtonClickEventArgs args)

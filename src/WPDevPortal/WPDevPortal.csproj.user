@@ -4,7 +4,7 @@
     <UapAppxPackageBuildMode>SideloadOnly</UapAppxPackageBuildMode>
     <AppxShowAllApps>False</AppxShowAllApps>
     <AppxBuildConfigurationSelection>x86|x64|arm</AppxBuildConfigurationSelection>
-    <PackageOptionalProjectsInIdeBuilds>True</PackageOptionalProjectsInIdeBuilds>
+    <PackageOptionalProjectsInIdeBuilds>False</PackageOptionalProjectsInIdeBuilds>
     <Source>C:\Users\Empyreal96\Downloads\WPDevPortalIcon.png</Source>
     <SmallTileSource>C:\Users\Empyreal96\Downloads\WPDevPortalIcon.png</SmallTileSource>
     <MediumTileSource>C:\Users\Empyreal96\Downloads\WPDevPortalIcon.png</MediumTileSource>
